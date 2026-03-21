@@ -37,6 +37,18 @@ can be created via the config. In production, they are provisioned by MT.
 |--------|---------------|------------|
 | Link to a banking partner (sandbox) | `connections` | `entity_id` (one of `example1`, `example2`, `modern_treasury`), `nickname` |
 
+### Connection capabilities (sandbox)
+
+| `entity_id` | ACH credit | ACH debit | Book | Wire | Notes |
+|--------------|:----------:|:---------:|:----:|:----:|-------|
+| `example1` | Yes | Yes | Yes | Yes | **Recommended for demos.** Full payment capabilities on newly created IAs. |
+| `example2` | Yes | Yes | Yes | Yes | Same as `example1`. |
+| `modern_treasury` | Limited | **No** | Yes | No | Newly created IAs only support `book` transfers. Do **not** use for configs that need ACH or wire POs. |
+
+**Always use `example1`** (or `example2`) when the demo includes ACH payment
+orders, ACH debit pulls, wire transfers, or any non-book payment type.
+Use `modern_treasury` only for configs that exclusively use `book` transfers.
+
 Every config that creates internal accounts needs at least one connection.
 Connections cannot be deleted.
 
@@ -46,19 +58,16 @@ Connections cannot be deleted.
 
 A legal entity is a person or business. Required for KYC/KYB onboarding.
 
-### Auto-mock compliance data (recommended for demos)
+### Compliance fields are fully managed by the dataloader
 
-The dataloader **automatically fills** all compliance fields (address,
-identifications, dates, legal structure) with sandbox-safe mock values when
-they are omitted. For demos, **keep legal entities simple:**
+The dataloader **always overwrites** `identifications`, `addresses`, and
+`documents` with sandbox-safe mock data. Any values you provide for these
+fields are **silently replaced** — so **never include them** in the JSON.
 
-| `legal_entity_type` | Minimum config fields |
-|---------------------|----------------------|
-| `business` | `ref`, `legal_entity_type`, `business_name` |
-| `individual` | `ref`, `legal_entity_type`, `first_name`, `last_name` |
-
-Any field you set explicitly overrides the mock default. For most demos, the
-minimal form is all you need:
+| `legal_entity_type` | Fields you provide | Auto-managed (do NOT include) |
+|---------------------|--------------------|-------------------------------|
+| `business` | `ref`, `legal_entity_type`, `business_name`, optional `legal_structure`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_formed`, `country_of_incorporation` |
+| `individual` | `ref`, `legal_entity_type`, `first_name`, `last_name`, optional `email`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_of_birth`, `citizenship_country` |
 
 ```json
 {
@@ -79,26 +88,10 @@ minimal form is all you need:
 }
 ```
 
-The model auto-populates: `date_formed` / `date_of_birth`,
-`legal_structure` / `citizenship_country`, a US address with correct
-`address_types`, and a valid 9-digit `us_ein` / `us_ssn` identification.
-
-**Do not** generate EINs, SSNs, addresses, or dates unless the demo story
-requires specific values (e.g. a particular city for the narrative).
+The mock provides: EIN/SSN, passport (for individuals), US address, required
+documents (`articles_of_incorporation` for businesses), and default dates/structure.
 
 Legal entities cannot be deleted.
-
-### Optional overrides (only if the demo needs specifics)
-
-`legal_structure` values: `corporation`, `llc`, `non_profit`, `partnership`,
-`sole_proprietorship`, `trust`.
-
-If you override `addresses`, each `address_types` array must contain **exactly
-one** value from: `business`, `mailing`, `other`, `po_box`, `residential`.
-Never use `"registered"` or `"headquarters"` — use `"business"`.
-
-If you override `identifications`, US tax IDs (`us_ein`, `us_ssn`, `us_itin`)
-must be **9 digits only** — no dashes or spaces.
 
 ---
 
@@ -156,9 +149,13 @@ models, each user gets their own internal account as a "wallet."
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Platform operating account | `internal_accounts` | `connection_id`, `name`, `party_name`, `currency` (USD or CAD) |
-| Per-user wallet (PSP/marketplace) | `internal_accounts` | Same, plus `legal_entity_id` to link to the user's LE |
-| Platform revenue/fee account | `internal_accounts` | Same, named for the fee purpose |
+| Platform operating account | `internal_accounts` | `connection_id`, `name`, `party_name`, `currency`, `legal_entity_id` |
+| Per-user wallet (PSP/marketplace) | `internal_accounts` | Same — `legal_entity_id` links to the user's LE |
+| Platform revenue/fee account | `internal_accounts` | Same — `legal_entity_id` links to the **platform's** LE |
+
+**Every internal account MUST have a `legal_entity_id`.** The Modern Treasury
+connection requires it. For platform-owned accounts (revenue, operating, fee),
+reference the platform's own legal entity.
 
 Internal accounts cannot be deleted. They require a `connection_id` ref.
 A child ref `$ref:internal_account.<key>.ledger_account` is auto-registered

@@ -223,6 +223,41 @@ async def create_connection(
 # ---------------------------------------------------------------------------
 
 
+async def _poll_le_status(
+    client: AsyncModernTreasury,
+    le_id: str,
+    typed_ref: str,
+    emit_sse: EmitFn,
+) -> Any:
+    """Poll a Legal Entity until status == 'active'.
+
+    The MT sandbox may keep the LE in 'pending' while compliance checks
+    run asynchronously.  Internal accounts linked via ``legal_entity_id``
+    will fail if the LE is not yet active.
+    Uses tenacity with 2-10s exponential backoff, 60s timeout.
+    """
+
+    async def _before_sleep(retry_state: Any) -> None:
+        last = retry_state.outcome.result() if retry_state.outcome else None
+        status = getattr(last, "status", "unknown")
+        await emit_sse(
+            "waiting",
+            typed_ref,
+            {"attempt": retry_state.attempt_number, "detail": f"LE status: {status}"},
+        )
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_delay(60),
+        retry=retry_if_result(lambda r: r.status not in ("active", "denied")),
+        before_sleep=_before_sleep,
+    )
+    async def _poll() -> Any:
+        return await client.legal_entities.retrieve(le_id)
+
+    return await _poll()
+
+
 async def create_legal_entity(
     client: AsyncModernTreasury,
     emit_sse: EmitFn,
@@ -236,6 +271,21 @@ async def create_legal_entity(
         **resolved,
         idempotency_key=idempotency_key,
     )
+    if result.status != "active":
+        try:
+            result = await _poll_le_status(
+                client, result.id, typed_ref, emit_sse,
+            )
+        except RetryError as e:
+            last_result = e.last_attempt.result()
+            status = getattr(last_result, "status", "unknown")
+            if status == "denied":
+                raise RuntimeError(
+                    f"Legal entity {typed_ref} was denied by compliance"
+                ) from e
+            logger.bind(ref=typed_ref, status=status).warning(
+                "LE did not reach 'active' within timeout — proceeding anyway"
+            )
     return HandlerResult(
         created_id=result.id,
         resource_type="legal_entity",
