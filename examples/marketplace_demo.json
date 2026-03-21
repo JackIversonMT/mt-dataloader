@@ -250,29 +250,6 @@
         }
     ],
 
-    "expected_payments": [
-        {
-            "ref": "ep_buyer_deposit",
-            "description": "Expected deposit from John Smith for 2026 Sea Ray 320 Sundancer",
-            "reconciliation_rule_variables": [
-                {
-                    "internal_account_id": "$ref:internal_account.buyer_john_wallet",
-                    "direction": "credit",
-                    "amount_lower_bound": 10500000,
-                    "amount_upper_bound": 10500000,
-                    "type": "ach"
-                }
-            ],
-            "metadata": {
-                "listing_id": "BOAT-2026-0847",
-                "boat_description": "2026 Sea Ray 320 Sundancer",
-                "boat_price_usd": "105000",
-                "buyer_user_id": "USR-BUYER-10042",
-                "expected_by": "2026-04-01"
-            }
-        }
-    ],
-
     "incoming_payment_details": [
         {
             "ref": "ipd_buyer_deposit",
@@ -280,7 +257,7 @@
             "direction": "credit",
             "amount": 10500000,
             "internal_account_id": "$ref:internal_account.buyer_john_wallet",
-            "description": "Buyer deposit — 2026 Sea Ray 320 Sundancer (BOAT-2026-0847)"
+            "description": "Simulated inbound deposit — buyer push to wallet for BOAT-2026-0847 (sandbox only)"
         }
     ],
 
@@ -310,8 +287,8 @@
             "amount": 315000,
             "originating_account_id": "$ref:internal_account.buyer_john_wallet",
             "receiving_account_id": "$ref:internal_account.boats_group_revenue",
-            "depends_on": ["$ref:incoming_payment_detail.ipd_buyer_deposit"],
-            "description": "Platform fee — 3% commission on BOAT-2026-0847 sale",
+            "depends_on": ["$ref:payment_order.po_settle_to_seller"],
+            "description": "Platform fee — 3% commission on BOAT-2026-0847 sale (after settlement debit)",
             "metadata": {
                 "transaction_type": "platform_fee",
                 "listing_id": "BOAT-2026-0847",
@@ -335,18 +312,18 @@
             }
         },
         {
-            "ref": "po_nsf_debit",
+            "ref": "po_nsf_pull",
             "type": "ach",
             "direction": "debit",
             "amount": 1500000,
             "originating_account_id": "$ref:internal_account.buyer_mike_wallet",
             "receiving_account_id": "$ref:counterparty.buyer_mike_cp.account[0]",
-            "description": "ACH debit — Mike Johnson deposit for BOAT-2026-1122 (will auto-return R01)",
+            "description": "ACH debit collection — platform pulls from Mike's bank (not a buyer-push deposit)",
             "metadata": {
-                "transaction_type": "buyer_drawdown",
+                "transaction_type": "ach_collection",
                 "listing_id": "BOAT-2026-1122",
-                "demo_purpose": "nsf_return_simulation",
-                "expected_outcome": "R01_insufficient_funds"
+                "demo_purpose": "sandbox_auto_return_via_po",
+                "sandbox_note": "sandbox_behavior return only applies to POs to counterparty accounts, not IPDs"
             }
         }
     ]

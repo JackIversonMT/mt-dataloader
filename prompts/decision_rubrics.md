@@ -6,6 +6,28 @@ DataLoaderConfig JSON.
 
 ---
 
+## Default: PSP / Marketplace (wallets, no ledger)
+
+For **payment service provider** and **marketplace** demos where users hold
+funds in **internal accounts as wallets**:
+
+- **Use:** `legal_entity`, `counterparty` (with inline accounts +
+  `sandbox_behavior`), `internal_account` (per user + platform revenue),
+  `payment_order` (`book` for wallet-to-wallet / fees, `ach` for bank payout
+  or ACH collection).
+- **Inbound buyer funds (sandbox):** `incoming_payment_detail` simulates an
+  external **push** into a wallet — not something you “do” in production the
+  same way; it is sandbox simulation.
+- **Do not add by default:** `ledger`, `ledger_account`, `ledger_transaction`,
+  `virtual_account`, `expected_payment` — only if the demo is explicitly about
+  accounting or reconciliation attribution.
+- **NSF / auto-return via magic account:** only works on **POs to a
+  counterparty account** (`sandbox_behavior: "return"`). That is an **ACH
+  debit pull** (or credit to a return-test account), not an IPD. Label it
+  that way in descriptions and metadata.
+
+---
+
 ## Connections
 
 A connection represents a link to a banking partner. In sandbox, connections
@@ -110,20 +132,22 @@ or an inline ledger account.
 
 ---
 
-## Virtual Accounts
+## Virtual Accounts (Rare)
 
-A virtual account is a sub-account within an internal account, used for
-per-payer inbound attribution. **Not a wallet.** Virtual accounts don't
-hold balances — they route inbound payments to the parent IA with payer
-attribution.
+Use **sparingly.** Most PSP and marketplace demos should use **internal
+accounts as wallets** only.
+
+A virtual account is a sub-account on an IA for **per-payer inbound
+attribution** on the **same** real bank account — not a separate wallet
+balance.
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Per-payer collection point | `virtual_accounts` | `name`, `internal_account_id`, optional `counterparty_id` |
+| Per-payer inbound routing label | `virtual_accounts` | `name`, `internal_account_id`, optional `counterparty_id` |
 
-Do NOT use virtual accounts for PSP wallet functionality — use internal
-accounts instead. Virtual accounts are for *inbound payment attribution*
-(e.g. knowing which tenant's rent payment just arrived).
+**Do not** use virtual accounts for PSP wallet balances — use internal
+accounts. Only add a VA when the demo story is specifically about VA-based
+inbound attribution (uncommon).
 
 ---
 
@@ -150,51 +174,60 @@ Payment orders cannot be deleted.
 
 ---
 
-## Expected Payments
+## Expected Payments (Reconciliation Only)
 
-An expected payment tells MT to watch for an inbound payment matching
-specific criteria. Used for reconciliation demos.
+An **expected payment** is a **reconciliation matcher** — it does **not**
+move money. MT matches incoming items (e.g. IPDs) to EP rules.
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Expect an inbound payment | `expected_payments` | `reconciliation_rule_variables` (required), `description` |
+| Reconciliation / “we expect this inbound” | `expected_payments` | `reconciliation_rule_variables` (required), `description` |
 
-`reconciliation_rule_variables` must include at least one entry with:
-- `internal_account_id` — which account to watch
-- `direction` — `credit` or `debit`
-- `amount_lower_bound` and `amount_upper_bound` — amount range in cents
-- `type` — payment type (e.g. `ach`)
+**PSP / marketplace:** Do **not** add EPs unless the demo explicitly shows
+reconciliation status or matching. Sandbox IPD `create_async()` completes
+without needing an EP for the money to appear; an EP you never surface in the
+UI adds noise.
 
-Pair with an `incoming_payment_detail` of matching amount on the same
-internal account to demonstrate auto-reconciliation.
+If you **do** demo reconciliation: create the EP **before** the IPD in the
+DAG (e.g. IPD `depends_on` the EP), and use matching amounts on the same IA.
+
+`reconciliation_rule_variables` must include `internal_account_id`,
+`direction`, `amount_lower_bound`, `amount_upper_bound`, and `type`.
 
 ---
 
-## Incoming Payment Details (Sandbox Only)
+## Incoming Payment Details (Sandbox Simulation)
 
-Simulates an inbound bank deposit arriving. **Sandbox only** — in production,
-these are created by real bank deposits.
+**Production:** IPDs are created by the **bank** when money arrives — you
+receive them; you do not originate them like a PO.
+
+**Sandbox:** `incoming_payment_detail` + `create_async()` **simulates** an
+external party sending money **into** an internal account (e.g. buyer push
+to wallet). Treat it as **inbound deposit simulation**, not a generic
+“workflow step” interchangeable with payment orders.
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Simulate a bank deposit | `incoming_payment_details` | `type`, `direction`, `amount`, `internal_account_id` |
+| Simulate inbound credit to an IA | `incoming_payment_details` | `type`, `direction`, `amount`, `internal_account_id` |
 
-After creation, the IPD polls until `completed` status (up to 30s). Once
-completed, child refs are auto-registered:
-- `$ref:incoming_payment_detail.<key>.transaction` — the resulting transaction
-- `$ref:incoming_payment_detail.<key>.ledger_transaction` — if ledgering is active
+After creation, the loader polls until `completed`. Child refs may include
+`transaction` (and ledger linkage if your org uses it).
 
 **IPDs do not support metadata.**
 
-Use `depends_on` on downstream payment orders that need to wait for the
-IPD to settle before moving the deposited funds.
+Downstream **book** transfers that spend those funds should `depends_on` the
+IPD because their PO fields only reference IAs, not the IPD.
+
+**Failures on inbound:** `sandbox_behavior` does **not** apply to IPDs. Use
+an explicit `return` with `returnable_id` pointing at the IPD if you need
+an inbound return story.
 
 ---
 
-## Ledgers & Ledger Accounts
+## Ledgers & Ledger Accounts (Skip for PSP-Only Demos)
 
-Double-entry bookkeeping. A ledger contains ledger accounts, and ledger
-transactions move amounts between them.
+Double-entry bookkeeping. Omit entirely for **PSP / marketplace wallet**
+configs unless the customer asked for ledgering.
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
@@ -227,18 +260,18 @@ Organizational grouping for ledger accounts (e.g. "Assets", "Liabilities").
 
 ## Returns
 
-Return an incoming payment (e.g. reject or bounce an IPD). Returns reference
-the IPD being returned.
+Return an **incoming payment detail** (inbound item). **`sandbox_behavior`
+does not apply to IPDs** — only to POs sent to counterparty accounts.
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Return an incoming payment | `returns` | `returnable_id` (ref to an IPD), optional `code`, `reason` |
+| Return / bounce an inbound IPD | `returns` | `returnable_id` → IPD, optional `code`, `reason` |
 
-**Returns do not support metadata.** The `returnable_type` is always
-`incoming_payment_detail` (auto-set by the loader).
+**Returns do not support metadata.**
 
-Prefer using `sandbox_behavior: "return"` on counterparty accounts to
-simulate returns — this is more realistic than manually creating returns.
+For **outbound** PO failures / NSF demos to a buyer’s bank, use
+`sandbox_behavior: "return"` on the counterparty **and** an ACH PO — that is
+not the same as an IPD return.
 
 ---
 

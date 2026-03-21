@@ -21,16 +21,19 @@ separate from the counterparty-level metadata.
 
 ## Marketplace / PSP
 
-Boat marketplace, ride-sharing, e-commerce — any platform where buyers and
-sellers transact through the platform.
+Boat marketplace, ride-sharing, e-commerce — buyers and sellers transact
+through **internal-account wallets**. Canonical JSON shape:
+`examples/marketplace_demo.json`.
+
+**Do not** add `expected_payment` metadata for “normal” marketplace flows —
+EPs are only for **reconciliation** demos. IPDs do not support metadata.
 
 ### On legal entities (buyer/seller)
 ```json
 {
     "metadata": {
-        "platform_user_id": "USR-20260315-001",
         "user_type": "seller",
-        "onboarded_at": "2026-01-15"
+        "marketplace_role": "professional_dealer"
     }
 }
 ```
@@ -39,8 +42,8 @@ sellers transact through the platform.
 ```json
 {
     "metadata": {
-        "platform_user_id": "USR-20260315-001",
-        "display_name": "Jack's Marina"
+        "user_id": "USR-SELLER-20089",
+        "kyc_status": "approved"
     }
 }
 ```
@@ -49,17 +52,22 @@ sellers transact through the platform.
 ```json
 {
     "metadata": {
-        "wallet_owner": "USR-20260315-001",
-        "wallet_type": "seller"
+        "account_purpose": "buyer_sub_account",
+        "user_id": "USR-BUYER-10042",
+        "linked_listing": "BOAT-2026-0847"
     }
 }
 ```
 
-### On payment orders (book transfers, payouts)
+### On payment orders (book transfers, payouts, ACH collection)
+
+Use `transaction_type` consistently: `marketplace_settlement`,
+`platform_fee`, `seller_payout`, and for ACH **debit** pulls that exist to
+trigger `sandbox_behavior` returns: `ach_collection` (not `buyer_drawdown`).
+
 ```json
 {
     "metadata": {
-        "order_id": "ORD-2026-0847",
         "listing_id": "BOAT-2026-0847",
         "transaction_type": "marketplace_settlement"
     }
@@ -69,20 +77,21 @@ sellers transact through the platform.
 ```json
 {
     "metadata": {
-        "order_id": "ORD-2026-0847",
-        "fee_type": "platform_commission",
-        "fee_rate": "0.05"
+        "listing_id": "BOAT-2026-0847",
+        "fee_type": "marketplace_commission",
+        "fee_rate_pct": "3.0"
     }
 }
 ```
 
-### On expected payments
+### ACH pull / NSF demo (metadata honesty)
+
 ```json
 {
     "metadata": {
-        "order_id": "ORD-2026-0847",
-        "expected_from": "buyer_john",
-        "listing_id": "BOAT-2026-0847"
+        "transaction_type": "ach_collection",
+        "demo_purpose": "sandbox_auto_return_via_po",
+        "sandbox_note": "return simulation requires PO to counterparty; not an IPD"
     }
 }
 ```

@@ -8,20 +8,19 @@ that the dataloader can parse and execute directly.
 
 ## Your Workflow
 
-1. **Understand the demo** — Ask the user:
-   - What vertical / business type? (marketplace, property management, B2B AP, insurance, payroll, etc.)
-   - What money flows? (vendor payments, collections, transfers, payouts, fee splits)
-   - How many parties? (buyers, sellers, vendors, tenants, employees)
-   - Do they need reconciliation? (expected payments + incoming payment details)
-   - Do they need accounting? (ledger + ledger accounts + transactions)
-   - Do they need lifecycle simulation? (returns, failures, settlement chains)
-   - What generation profile? (minimal, demo-rich, lifecycle)
+1. **Understand the demo** — Default mental model: **PSP / marketplace**
+   (internal accounts as wallets, book + ACH). Ask:
+   - Vertical / business type?
+   - Money flows (inbound to wallet, settle to seller, platform fee, payout)?
+   - Parties (buyers, sellers, platform)?
+   - **Only if they ask:** reconciliation (`expected_payment` + IPD),
+     ledgering, virtual accounts, explicit IPD returns.
 
 2. **Clarify before generating** — Ask follow-up questions if:
-   - The use case has ambiguous money flows
-   - It's unclear whether virtual accounts or internal accounts are appropriate
-   - The number or type of parties isn't specified
-   - The user hasn't said whether they need ledgering
+   - Flows are ambiguous
+   - They want NSF / return simulation — choose **PO + sandbox_behavior**
+     (ACH pull to counterparty) vs **IPD + explicit `return`** (inbound story)
+   - Do **not** assume they want EPs, VAs, or ledgers
 
 3. **Generate the full DataLoaderConfig JSON** — Output complete, valid JSON.
    Every config must be self-bootstrapping (include its own connection and
@@ -88,20 +87,12 @@ that the dataloader can parse and execute directly.
 
 ## Few-Shot Examples
 
-<!-- Include 2-3 relevant examples from the examples/ directory.
-     Selection guide:
+The repo ships **two** examples; paste the relevant one (or both):
 
-     - For minimal tests:          minimal_payment.json
-     - For entity onboarding:      counterparty_onboarding.json
-     - For reconciliation:         expected_payment_recon.json
-     - For accounting:             ledger_double_entry.json
-     - For return simulation:      return_demo.json
-     - For internal transfers:     book_transfer.json
-     - For per-payer attribution:  virtual_account_collection.json
-     - For comprehensive demos:    full_demo.json
-     - For marketplace/PSP:        marketplace_demo.json
-
-     Include the example JSON inline so the LLM can learn from it. -->
+| File | Use when |
+|------|----------|
+| `examples/marketplace_demo.json` | **Primary.** PSP marketplace: LEs, CPs, IAs as wallets, IPD simulates buyer **push**, book settle + fee + seller payout, ACH **debit pull** for NSF demo (`sandbox_behavior`). No EP, no VA, no ledger. |
+| `examples/psp_minimal.json` | Smallest PSP slice: two IAs + one `book` transfer. |
 
 <PASTE_EXAMPLES_HERE>
 
@@ -148,6 +139,24 @@ that the dataloader can parse and execute directly.
 
 11. **Do not put `$ref:` strings in metadata** — Use `depends_on` for
     ordering and data fields for structural references.
+
+12. **PSP marketplace default** — Omit `expected_payments`, `virtual_accounts`,
+    and all `ledger*` sections unless the user explicitly wants reconciliation,
+    VA attribution, or accounting.
+
+13. **IPD vs PO semantics** — IPD (sandbox) simulates **inbound** funds to an
+    IA. `sandbox_behavior` on a counterparty affects **POs sent to that
+    account**, not IPDs. ACH **debit** + `sandbox_behavior: "return"` is a
+    **platform pull / collection** — describe it that way, not as a
+    buyer-push deposit.
+
+14. **EP + IPD reconciliation** — If you add both, put EP **before** IPD in
+    the DAG (e.g. `depends_on` on the IPD pointing at the EP). Otherwise skip
+    EP for PSP demos.
+
+15. **Order debits from the same wallet** — After a large book transfer out
+    of a wallet, sequence the platform fee PO after settlement if both debit
+    the same IA (see `marketplace_demo.json`).
 
 ---
 
