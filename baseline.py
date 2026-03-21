@@ -43,6 +43,8 @@ __all__ = [
     "DiscoveredConnection",
     "DiscoveredInternalAccount",
     "DiscoveredLedger",
+    "DiscoveredLegalEntity",
+    "DiscoveredCounterparty",
     "DiscoveryResult",
     "discover_org",
     "baseline_from_discovery",
@@ -119,6 +121,7 @@ class BaselineLegalEntity(BaseModel):
         min_length=1,
         description="SDK field: LegalEntity.business_name (no single 'name' field)",
     )
+    display_name: str = ""
 
     @field_validator("ref")
     @classmethod
@@ -317,8 +320,12 @@ async def run_preflight(
         entries=baseline.legal_entities,
         retrieve_fn=client.legal_entities.retrieve,
         resource_type="legal_entity",
-        name_getter=lambda live: live.business_name or "(no business_name)",
-        entry_name_getter=lambda e: e.business_name,
+        name_getter=lambda live: (
+            live.business_name
+            or f"{live.first_name or ''} {live.last_name or ''}".strip()
+            or "(no name)"
+        ),
+        entry_name_getter=lambda e: e.display_name or e.business_name,
         result=result,
     )
 
@@ -503,20 +510,52 @@ class DiscoveredLedger:
 
 
 @dataclass
+class DiscoveredLegalEntity:
+    id: str
+    legal_entity_type: str
+    business_name: str | None
+    first_name: str | None
+    last_name: str | None
+    status: str
+    auto_ref: str = ""
+
+
+@dataclass
+class DiscoveredCounterparty:
+    id: str
+    name: str
+    legal_entity_id: str | None
+    account_count: int
+    auto_ref: str = ""
+
+
+@dataclass
 class DiscoveryResult:
     connections: list[DiscoveredConnection] = field(default_factory=list)
     internal_accounts: list[DiscoveredInternalAccount] = field(default_factory=list)
     ledgers: list[DiscoveredLedger] = field(default_factory=list)
+    legal_entities: list[DiscoveredLegalEntity] = field(default_factory=list)
+    counterparties: list[DiscoveredCounterparty] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 
-async def discover_org(client: AsyncModernTreasury) -> DiscoveryResult:
-    """Discover connections, internal accounts, and ledgers from a live org.
+async def discover_org(
+    client: AsyncModernTreasury,
+    config: Any | None = None,
+) -> DiscoveryResult:
+    """Discover existing resources from a live org.
 
-    Collects all resources of each type first, then batch-assigns deterministic
-    refs.  Returns a ``DiscoveryResult`` ready for ``baseline_from_discovery()``.
+    Connections, internal accounts, and ledgers are always fetched.
+    Legal entities and counterparties are only fetched when the config
+    contains those sections (conditional fetch — avoids pulling thousands
+    of resources in production orgs that don't need them).
     """
     result = DiscoveryResult()
+
+    config_types: set[str] = set()
+    if config is not None:
+        for res in all_resources(config):
+            config_types.add(res.resource_type)
 
     # --- Connections ---
     conn_objects: list[Any] = []
@@ -542,7 +581,6 @@ async def discover_org(client: AsyncModernTreasury) -> DiscoveryResult:
             "Your config will need to create one (sandbox-only, via connections section)."
         )
 
-    # --- Build connection ID → ref lookup for IA cross-references ---
     conn_id_to_ref: dict[str, str] = {
         c.id: c.auto_ref for c in result.connections
     }
@@ -592,14 +630,78 @@ async def discover_org(client: AsyncModernTreasury) -> DiscoveryResult:
             )
         )
 
+    # --- Legal Entities (conditional) ---
+    if "legal_entity" in config_types:
+        le_objects: list[Any] = []
+        le_names: list[str] = []
+        async for le in client.legal_entities.list():
+            le_objects.append(le)
+            le_names.append(_le_display_name_from_sdk(le))
+
+        le_refs = _assign_unique_refs("legal_entity", le_names)
+        for le, ref in zip(le_objects, le_refs):
+            result.legal_entities.append(
+                DiscoveredLegalEntity(
+                    id=le.id,
+                    legal_entity_type=le.legal_entity_type or "business",
+                    business_name=le.business_name,
+                    first_name=le.first_name,
+                    last_name=le.last_name,
+                    status=le.status or "unknown",
+                    auto_ref=ref,
+                )
+            )
+
+    # --- Counterparties (conditional) ---
+    if "counterparty" in config_types:
+        cp_objects: list[Any] = []
+        cp_names: list[str] = []
+        async for cp in client.counterparties.list():
+            cp_objects.append(cp)
+            cp_names.append(cp.name or f"cp_{cp.id[:8]}")
+
+        cp_refs = _assign_unique_refs("counterparty", cp_names)
+        for cp, ref in zip(cp_objects, cp_refs):
+            result.counterparties.append(
+                DiscoveredCounterparty(
+                    id=cp.id,
+                    name=cp.name or f"cp_{cp.id[:8]}",
+                    legal_entity_id=cp.legal_entity_id,
+                    account_count=len(cp.accounts) if cp.accounts else 0,
+                    auto_ref=ref,
+                )
+            )
+
     logger.bind(
         connections=len(result.connections),
         internal_accounts=len(result.internal_accounts),
         ledgers=len(result.ledgers),
+        legal_entities=len(result.legal_entities),
+        counterparties=len(result.counterparties),
         warnings=len(result.warnings),
     ).info("Org discovery complete")
 
     return result
+
+
+def _le_display_name_from_sdk(le: Any) -> str:
+    """Build a display name from an SDK LegalEntity response."""
+    if le.legal_entity_type == "business":
+        return le.business_name or f"le_{le.id[:8]}"
+    return (
+        f"{le.first_name or ''} {le.last_name or ''}".strip()
+        or le.business_name
+        or f"le_{le.id[:8]}"
+    )
+
+
+def _le_display_name(le: DiscoveredLegalEntity) -> str:
+    """Build a display name from a ``DiscoveredLegalEntity``."""
+    return (
+        le.business_name
+        or f"{le.first_name or ''} {le.last_name or ''}".strip()
+        or f"le_{le.id[:8]}"
+    )
 
 
 def baseline_from_discovery(discovery: DiscoveryResult) -> BaselineConfig:
@@ -638,10 +740,31 @@ def baseline_from_discovery(discovery: DiscoveryResult) -> BaselineConfig:
         for lg in discovery.ledgers
     ]
 
+    legal_entities = [
+        BaselineLegalEntity(
+            ref=le.auto_ref,
+            id=le.id,
+            business_name=_le_display_name(le),
+            display_name=_le_display_name(le),
+        )
+        for le in discovery.legal_entities
+    ]
+
+    counterparties = [
+        BaselineCounterparty(
+            ref=cp.auto_ref,
+            id=cp.id,
+            name=cp.name or f"cp_{cp.id[:8]}",
+        )
+        for cp in discovery.counterparties
+    ]
+
     return BaselineConfig(
         connections=connections,
         internal_accounts=internal_accounts,
         ledgers=ledgers,
+        legal_entities=legal_entities,
+        counterparties=counterparties,
     )
 
 
@@ -651,9 +774,11 @@ def baseline_from_discovery(discovery: DiscoveryResult) -> BaselineConfig:
 
 from models import (
     ConnectionConfig,
+    CounterpartyConfig,
     DataLoaderConfig,
     InternalAccountConfig,
     LedgerConfig,
+    LegalEntityConfig,
     _BaseResourceConfig,
 )
 
@@ -666,6 +791,7 @@ class ReconciledResource:
     discovered_name: str
     match_reason: str
     use_existing: bool = True
+    duplicates: list[dict] | None = None
 
 
 @dataclass
@@ -675,40 +801,44 @@ class ReconciliationResult:
     unmatched_discovered: list[str] = field(default_factory=list)
 
 
+def _pick_best_le(candidates: list[DiscoveredLegalEntity]) -> DiscoveredLegalEntity:
+    """Prefer active LEs over other statuses when auto-selecting."""
+    return next((c for c in candidates if c.status == "active"), candidates[0])
+
+
 def reconcile_config(
     config: DataLoaderConfig,
     discovery: DiscoveryResult,
 ) -> ReconciliationResult:
     """Match config-defined resources against discovered org resources.
 
-    Matching order: connections first (IAs depend on connection resolution),
-    then internal accounts, then ledgers.
+    Matching order: connections → internal accounts → ledgers →
+    legal entities → counterparties.  All matchers use list-valued
+    lookups for duplicate detection.
     """
     result = ReconciliationResult()
-
-    # Track which discovered resources got matched
     matched_discovered_ids: set[str] = set()
 
-    # Build lookup tables from discovery
+    # ---------------------------------------------------------------
+    # 1. Connections: match entity_id ↔ vendor_id
+    # ---------------------------------------------------------------
     vendor_id_to_conns: dict[str, list[DiscoveredConnection]] = {}
     for dc in discovery.connections:
         vendor_id_to_conns.setdefault(dc.vendor_id, []).append(dc)
 
-    # --- 1. Connections: match entity_id ↔ vendor_id ---
     config_conn_to_discovered: dict[str, str] = {}
 
-    config_connections = config.connections or []
-    for conn in config_connections:
+    for conn in config.connections or []:
         tref = typed_ref_for(conn)
         candidates = vendor_id_to_conns.get(conn.entity_id, [])
         if candidates:
-            if len(candidates) > 1:
-                logger.warning(
-                    "Multiple discovered connections share vendor_id='{}'; using first match ({})",
-                    conn.entity_id,
-                    candidates[0].id,
-                )
             match = candidates[0]
+            dups = None
+            if len(candidates) > 1:
+                dups = [
+                    {"id": c.id, "name": c.vendor_name, "detail": f"vendor_id={c.vendor_id}"}
+                    for c in candidates
+                ]
             result.matches.append(
                 ReconciledResource(
                     config_ref=tref,
@@ -716,6 +846,7 @@ def reconcile_config(
                     discovered_id=match.id,
                     discovered_name=match.vendor_name,
                     match_reason=f"entity_id={conn.entity_id}",
+                    duplicates=dups,
                 )
             )
             config_conn_to_discovered[tref] = match.id
@@ -723,18 +854,19 @@ def reconcile_config(
         else:
             result.unmatched_config.append(tref)
 
-    # --- 2. Internal accounts: match name + currency + connection ---
-    disc_ia_by_key: dict[tuple[str, str, str], DiscoveredInternalAccount] = {}
+    # ---------------------------------------------------------------
+    # 2. Internal accounts: match name + currency + connection
+    # ---------------------------------------------------------------
+    disc_ia_by_key: dict[tuple[str, str, str], list[DiscoveredInternalAccount]] = {}
     for dia in discovery.internal_accounts:
         key = (
             (dia.name or "").strip().lower(),
             dia.currency.upper(),
             dia.connection_id,
         )
-        disc_ia_by_key[key] = dia
+        disc_ia_by_key.setdefault(key, []).append(dia)
 
-    config_ias = config.internal_accounts or []
-    for ia in config_ias:
+    for ia in config.internal_accounts or []:
         tref = typed_ref_for(ia)
         conn_ref_value = ia.connection_id
         resolved_conn_id = ""
@@ -745,8 +877,15 @@ def reconcile_config(
             resolved_conn_id = conn_ref_value
 
         key = (ia.name.strip().lower(), ia.currency.upper(), resolved_conn_id)
-        match = disc_ia_by_key.get(key)
-        if match:
+        candidates = disc_ia_by_key.get(key, [])
+        if candidates:
+            match = candidates[0]
+            dups = None
+            if len(candidates) > 1:
+                dups = [
+                    {"id": c.id, "name": c.name or c.id[:12], "detail": c.currency}
+                    for c in candidates
+                ]
             result.matches.append(
                 ReconciledResource(
                     config_ref=tref,
@@ -754,22 +893,31 @@ def reconcile_config(
                     discovered_id=match.id,
                     discovered_name=match.name or match.id[:12],
                     match_reason=f"name+currency+connection ({ia.name}, {ia.currency})",
+                    duplicates=dups,
                 )
             )
             matched_discovered_ids.add(match.id)
         else:
             result.unmatched_config.append(tref)
 
-    # --- 3. Ledgers: match by name ---
-    disc_ledger_by_name: dict[str, DiscoveredLedger] = {}
+    # ---------------------------------------------------------------
+    # 3. Ledgers: match by name
+    # ---------------------------------------------------------------
+    disc_ledger_by_name: dict[str, list[DiscoveredLedger]] = {}
     for dl in discovery.ledgers:
-        disc_ledger_by_name[dl.name.strip().lower()] = dl
+        disc_ledger_by_name.setdefault(dl.name.strip().lower(), []).append(dl)
 
-    config_ledgers = config.ledgers or []
-    for ledger in config_ledgers:
+    for ledger in config.ledgers or []:
         tref = typed_ref_for(ledger)
-        match = disc_ledger_by_name.get(ledger.name.strip().lower())
-        if match:
+        candidates = disc_ledger_by_name.get(ledger.name.strip().lower(), [])
+        if candidates:
+            match = candidates[0]
+            dups = None
+            if len(candidates) > 1:
+                dups = [
+                    {"id": c.id, "name": c.name, "detail": ""}
+                    for c in candidates
+                ]
             result.matches.append(
                 ReconciledResource(
                     config_ref=tref,
@@ -777,22 +925,115 @@ def reconcile_config(
                     discovered_id=match.id,
                     discovered_name=match.name,
                     match_reason=f"name={ledger.name}",
+                    duplicates=dups,
                 )
             )
             matched_discovered_ids.add(match.id)
         else:
             result.unmatched_config.append(tref)
 
-    # Remaining config resources that aren't reconcilable types
-    reconcilable_types = {"connection", "internal_account", "ledger"}
+    # ---------------------------------------------------------------
+    # 4. Legal entities: match by type + name
+    # ---------------------------------------------------------------
+    disc_le_by_key: dict[tuple[str, str], list[DiscoveredLegalEntity]] = {}
+    for dle in discovery.legal_entities:
+        if dle.legal_entity_type == "business":
+            key = ("business", (dle.business_name or "").strip().lower())
+        elif dle.legal_entity_type == "individual":
+            full = f"{dle.first_name or ''} {dle.last_name or ''}".strip().lower()
+            key = ("individual", full)
+        elif dle.legal_entity_type == "joint":
+            name = (
+                dle.business_name
+                or f"{dle.first_name or ''} {dle.last_name or ''}".strip()
+            ).lower()
+            key = ("joint", name)
+        else:
+            continue
+        disc_le_by_key.setdefault(key, []).append(dle)
+
+    for le_cfg in config.legal_entities or []:
+        tref = typed_ref_for(le_cfg)
+        if le_cfg.legal_entity_type == "business":
+            key = ("business", (le_cfg.business_name or "").strip().lower())
+        elif le_cfg.legal_entity_type == "individual":
+            full = f"{le_cfg.first_name or ''} {le_cfg.last_name or ''}".strip().lower()
+            key = ("individual", full)
+        else:
+            key = ("joint", (le_cfg.business_name or "").strip().lower())
+
+        candidates = disc_le_by_key.get(key, [])
+        if candidates:
+            match = _pick_best_le(candidates)
+            dups = None
+            if len(candidates) > 1:
+                dups = [
+                    {"id": c.id, "name": _le_display_name(c), "detail": f"status={c.status}"}
+                    for c in candidates
+                ]
+            result.matches.append(
+                ReconciledResource(
+                    config_ref=tref,
+                    config_resource=le_cfg,
+                    discovered_id=match.id,
+                    discovered_name=_le_display_name(match),
+                    match_reason=f"type+name ({le_cfg.legal_entity_type})",
+                    duplicates=dups,
+                )
+            )
+            matched_discovered_ids.add(match.id)
+        else:
+            result.unmatched_config.append(tref)
+
+    # ---------------------------------------------------------------
+    # 5. Counterparties: match by name
+    # ---------------------------------------------------------------
+    disc_cp_by_name: dict[str, list[DiscoveredCounterparty]] = {}
+    for dcp in discovery.counterparties:
+        disc_cp_by_name.setdefault((dcp.name or "").strip().lower(), []).append(dcp)
+
+    for cp_cfg in config.counterparties or []:
+        tref = typed_ref_for(cp_cfg)
+        candidates = disc_cp_by_name.get(cp_cfg.name.strip().lower(), [])
+        if candidates:
+            match = candidates[0]
+            dups = None
+            if len(candidates) > 1:
+                dups = [
+                    {"id": c.id, "name": c.name, "detail": f"{c.account_count} accounts"}
+                    for c in candidates
+                ]
+            result.matches.append(
+                ReconciledResource(
+                    config_ref=tref,
+                    config_resource=cp_cfg,
+                    discovered_id=match.id,
+                    discovered_name=match.name,
+                    match_reason=f"name={cp_cfg.name}",
+                    duplicates=dups,
+                )
+            )
+            matched_discovered_ids.add(match.id)
+        else:
+            result.unmatched_config.append(tref)
+
+    # ---------------------------------------------------------------
+    # Catch-all for reconcilable config resources not yet processed
+    # ---------------------------------------------------------------
+    reconcilable_types = {"connection", "internal_account", "ledger", "legal_entity", "counterparty"}
+    matched_refs = {m.config_ref for m in result.matches}
+    unmatched_set = set(result.unmatched_config)
     for res in all_resources(config):
         tref = typed_ref_for(res)
         if res.resource_type not in reconcilable_types:
             continue
-        if tref not in [m.config_ref for m in result.matches] and tref not in result.unmatched_config:
+        if tref not in matched_refs and tref not in unmatched_set:
             result.unmatched_config.append(tref)
+            unmatched_set.add(tref)
 
+    # ---------------------------------------------------------------
     # Unmatched discovered resources
+    # ---------------------------------------------------------------
     for dc in discovery.connections:
         if dc.id not in matched_discovered_ids:
             result.unmatched_discovered.append(dc.auto_ref)
@@ -802,6 +1043,12 @@ def reconcile_config(
     for dl in discovery.ledgers:
         if dl.id not in matched_discovered_ids:
             result.unmatched_discovered.append(dl.auto_ref)
+    for dle in discovery.legal_entities:
+        if dle.id not in matched_discovered_ids:
+            result.unmatched_discovered.append(dle.auto_ref)
+    for dcp in discovery.counterparties:
+        if dcp.id not in matched_discovered_ids:
+            result.unmatched_discovered.append(dcp.auto_ref)
 
     logger.bind(
         matches=len(result.matches),

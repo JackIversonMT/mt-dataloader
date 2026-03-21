@@ -1,17 +1,20 @@
-{% if reconciliation and reconciliation.matches %}
+{% if reconciliation and (reconciliation.matches or reconciliation.unmatched_config) %}
 <div class="reconciliation-panel">
     <h3>Resource Reconciliation</h3>
     <p class="text-muted">
-        These config resources match existing resources in your org.
-        Toggle to "Create new" if you want a fresh resource instead.
+        Match config resources to existing org resources. Adjust toggles, pick duplicates, or remap "will be created" items.
     </p>
 
+    {% if reconciliation.matches %}
     <div class="reconciliation-matches">
         {% for m in reconciliation.matches %}
-        <div class="reconciliation-card">
+        <div class="reconciliation-card{% if m.duplicates %} has-duplicates{% endif %}">
             <div class="recon-card-header">
                 <span class="type-badge type-{{ m.config_ref.split('.')[0] }}">{{ m.config_ref.split('.')[0] }}</span>
                 <code class="recon-config-ref">{{ m.config_ref }}</code>
+                {% if m.duplicates %}
+                <span class="recon-dup-badge">{{ m.duplicates|length }} duplicates</span>
+                {% endif %}
             </div>
             <div class="recon-card-body">
                 <div class="recon-match-info">
@@ -25,6 +28,19 @@
                 </div>
             </div>
             <div class="recon-card-toggle">
+                {% if m.duplicates %}
+                <select class="recon-dup-select"
+                        name="recon_dup_{{ m.config_ref }}"
+                        onchange="updateReconcileOverrides()">
+                    <option value="">Create new</option>
+                    {% for dup in m.duplicates %}
+                    <option value="{{ dup.id }}"
+                            {% if dup.id == m.discovered_id %}selected{% endif %}>
+                        {{ dup.name }} ({{ dup.id[:12] }}&hellip;){% if dup.detail %} &mdash; {{ dup.detail }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
                 <label class="toggle-switch">
                     <input type="checkbox"
                            name="recon_use_existing_{{ m.config_ref }}"
@@ -34,44 +50,92 @@
                     <span class="toggle-slider"></span>
                 </label>
                 <span class="toggle-label">{{ "Use existing" if m.use_existing else "Create new" }}</span>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
+    {% endif %}
 
     {% if reconciliation.unmatched_config %}
     <div class="recon-section">
         <h4>Will be created</h4>
-        <div class="recon-list">
+        <div class="recon-remap-list">
             {% for ref in reconciliation.unmatched_config %}
-            <span class="recon-chip recon-chip-new">{{ ref }}</span>
+            {% set rtype = ref.split('.')[0] %}
+            <div class="recon-remap-row">
+                <span class="type-badge type-{{ rtype }}">{{ rtype }}</span>
+                <code>{{ ref }}</code>
+                {% if discovered_by_type and discovered_by_type.get(rtype) %}
+                <select class="recon-remap-select"
+                        name="manual_map_{{ ref }}"
+                        onchange="updateReconcileOverrides()">
+                    <option value="">Create new{% if rtype == 'connection' %} (sandbox only){% endif %}</option>
+                    {% for d in discovered_by_type[rtype] %}
+                    <option value="{{ d.id }}">
+                        {{ d.name }} ({{ d.id[:12] }}&hellip;){% if d.detail %} &mdash; {{ d.detail }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <span class="recon-chip recon-chip-new">new</span>
+                {% endif %}
+            </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
 
     {% if reconciliation.unmatched_discovered %}
-    <div class="recon-section">
-        <h4>Existing (not referenced by config)</h4>
+    <details class="recon-section recon-existing-details">
+        <summary class="recon-existing-toggle">
+            Show {{ reconciliation.unmatched_discovered|length }} existing resource{{ 's' if reconciliation.unmatched_discovered|length != 1 }} not referenced by config
+        </summary>
         <div class="recon-list">
             {% for ref in reconciliation.unmatched_discovered %}
             <span class="recon-chip recon-chip-existing">{{ ref }}</span>
             {% endfor %}
         </div>
-    </div>
+    </details>
     {% endif %}
 </div>
 
 <script>
 function updateReconcileOverrides() {
     var overrides = {};
+    var manualMappings = {};
+
+    // Simple toggle overrides (no duplicates)
     document.querySelectorAll('[name^="recon_use_existing_"]').forEach(function(cb) {
         var ref = cb.name.replace('recon_use_existing_', '');
         overrides[ref] = cb.checked;
         var label = cb.closest('.recon-card-toggle').querySelector('.toggle-label');
         if (label) label.textContent = cb.checked ? 'Use existing' : 'Create new';
     });
-    document.getElementById('reconcile-overrides').value = JSON.stringify(overrides);
+
+    // Duplicate select overrides
+    document.querySelectorAll('[name^="recon_dup_"]').forEach(function(sel) {
+        var ref = sel.name.replace('recon_dup_', '');
+        if (sel.value) {
+            overrides[ref] = {"use_existing": true, "discovered_id": sel.value};
+        } else {
+            overrides[ref] = false;
+        }
+    });
+
+    // Manual remap for "will be created"
+    document.querySelectorAll('[name^="manual_map_"]').forEach(function(sel) {
+        var ref = sel.name.replace('manual_map_', '');
+        if (sel.value) {
+            manualMappings[ref] = sel.value;
+        }
+    });
+
+    var payload = {"overrides": overrides};
+    if (Object.keys(manualMappings).length > 0) {
+        payload["manual_mappings"] = manualMappings;
+    }
+    document.getElementById('reconcile-overrides').value = JSON.stringify(payload);
 }
 updateReconcileOverrides();
 </script>

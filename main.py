@@ -36,6 +36,7 @@ from baseline import (
     DiscoveryResult,
     PreflightResult,
     ReconciliationResult,
+    _le_display_name,
     baseline_from_discovery,
     discover_org,
     load_baseline,
@@ -317,6 +318,54 @@ def _extract_sandbox_info(resource: Any) -> str | None:
     return None
 
 
+def _build_discovered_by_type(
+    discovery: DiscoveryResult | None,
+) -> dict[str, list[dict]]:
+    """Group all discovered resources by type for the remap UI dropdowns."""
+    if discovery is None:
+        return {}
+    result: dict[str, list[dict]] = {}
+    for dc in discovery.connections:
+        result.setdefault("connection", []).append(
+            {"id": dc.id, "name": dc.vendor_name, "detail": f"vendor_id={dc.vendor_id}"}
+        )
+    for dia in discovery.internal_accounts:
+        result.setdefault("internal_account", []).append(
+            {"id": dia.id, "name": dia.name or dia.id[:12], "detail": dia.currency}
+        )
+    for dl in discovery.ledgers:
+        result.setdefault("ledger", []).append(
+            {"id": dl.id, "name": dl.name, "detail": ""}
+        )
+    for dle in discovery.legal_entities:
+        result.setdefault("legal_entity", []).append(
+            {"id": dle.id, "name": _le_display_name(dle), "detail": f"status={dle.status}"}
+        )
+    for dcp in discovery.counterparties:
+        result.setdefault("counterparty", []).append(
+            {"id": dcp.id, "name": dcp.name, "detail": f"{dcp.account_count} accounts"}
+        )
+    return result
+
+
+def _build_discovered_id_lookup(
+    discovery: DiscoveryResult,
+) -> dict[str, dict]:
+    """Build a flat ID → info lookup across all discovered resource types."""
+    lookup: dict[str, dict] = {}
+    for dc in discovery.connections:
+        lookup[dc.id] = {"name": dc.vendor_name, "type": "connection"}
+    for dia in discovery.internal_accounts:
+        lookup[dia.id] = {"name": dia.name or dia.id[:12], "type": "internal_account"}
+    for dl in discovery.ledgers:
+        lookup[dl.id] = {"name": dl.name, "type": "ledger"}
+    for dle in discovery.legal_entities:
+        lookup[dle.id] = {"name": _le_display_name(dle), "type": "legal_entity"}
+    for dcp in discovery.counterparties:
+        lookup[dcp.id] = {"name": dcp.name, "type": "counterparty"}
+    return lookup
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -418,7 +467,7 @@ async def validate(
         # 3. Discover org (replaces static baseline load)
         discovery: DiscoveryResult | None = None
         try:
-            discovery = await discover_org(client)
+            discovery = await discover_org(client, config=config)
             baseline = baseline_from_discovery(discovery)
         except (APIConnectionError, APITimeoutError) as exc:
             logger.warning(
@@ -451,7 +500,7 @@ async def validate(
         reconciliation = reconcile_config(config, discovery)
         for m in reconciliation.matches:
             if m.use_existing:
-                registry.register(m.config_ref, m.discovered_id)
+                registry.register_or_update(m.config_ref, m.discovered_id)
                 skip_refs.add(m.config_ref)
 
     # 5. Dry-run: DAG construction + ref resolution
@@ -513,6 +562,7 @@ async def validate(
             "discovery": discovery,
             "reconciliation": reconciliation,
             "config_json_text": config_json_text,
+            "discovered_by_type": _build_discovered_by_type(discovery),
         },
     )
 
@@ -549,7 +599,7 @@ async def revalidate(
     ) as client:
         discovery: DiscoveryResult | None = None
         try:
-            discovery = await discover_org(client)
+            discovery = await discover_org(client, config=config)
             baseline = baseline_from_discovery(discovery)
         except (APIConnectionError, APITimeoutError) as exc:
             logger.warning("Discovery failed during revalidate: {}", str(exc))
@@ -575,18 +625,45 @@ async def revalidate(
     skip_refs: set[str] = set()
     if discovery is not None:
         reconciliation = reconcile_config(config, discovery)
-        overrides: dict[str, bool] = {}
+        overrides: dict[str, bool | dict] = {}
+        manual_mappings: dict[str, str] = {}
         if reconcile_overrides:
             try:
-                overrides = json.loads(reconcile_overrides)
+                raw_ov = json.loads(reconcile_overrides)
+                overrides = raw_ov.get("overrides", raw_ov) if isinstance(raw_ov, dict) else {}
+                if isinstance(raw_ov, dict):
+                    manual_mappings = raw_ov.get("manual_mappings", {})
             except json.JSONDecodeError:
                 pass
+
+        registered_refs: set[str] = set()
         for m in reconciliation.matches:
             if m.config_ref in overrides:
-                m.use_existing = overrides[m.config_ref]
-            if m.use_existing:
-                registry.register(m.config_ref, m.discovered_id)
+                val = overrides[m.config_ref]
+                if isinstance(val, dict):
+                    m.use_existing = val.get("use_existing", True)
+                    if "discovered_id" in val:
+                        m.discovered_id = val["discovered_id"]
+                else:
+                    m.use_existing = bool(val)
+            if m.use_existing and m.config_ref not in registered_refs:
+                registry.register_or_update(m.config_ref, m.discovered_id)
                 skip_refs.add(m.config_ref)
+                registered_refs.add(m.config_ref)
+
+        # Process manual mappings (user mapped a "will be created" to an existing resource)
+        if manual_mappings and discovery is not None:
+            disc_by_id = _build_discovered_id_lookup(discovery)
+            for config_ref, disc_id in manual_mappings.items():
+                if not disc_id or config_ref in registered_refs:
+                    continue
+                disc_info = disc_by_id.get(disc_id)
+                if disc_info:
+                    registry.register_or_update(config_ref, disc_id)
+                    skip_refs.add(config_ref)
+                    registered_refs.add(config_ref)
+                    if config_ref in reconciliation.unmatched_config:
+                        reconciliation.unmatched_config.remove(config_ref)
 
     try:
         batches = dry_run(config, baseline_refs, skip_refs=skip_refs)
@@ -641,6 +718,7 @@ async def revalidate(
             "discovery": discovery,
             "reconciliation": reconciliation,
             "config_json_text": config_json_text,
+            "discovered_by_type": _build_discovered_by_type(discovery),
         },
     )
 

@@ -84,6 +84,13 @@ class RefRegistry:
             )
         self._store[typed_ref] = resource_id
 
+    def register_or_update(self, typed_ref: str, resource_id: str) -> None:
+        """Register or overwrite an existing ref (used by reconciliation)."""
+        self._store[typed_ref] = resource_id
+
+    def __contains__(self, typed_ref: str) -> bool:
+        return typed_ref in self._store
+
     def resolve(self, value: str) -> str:
         """Resolve a ``$ref:`` string to a UUID.  Literal UUIDs pass through."""
         if not value.startswith("$ref:"):

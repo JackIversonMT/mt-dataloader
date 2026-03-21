@@ -809,6 +809,52 @@ a.doc-link:hover .sandbox-badge {
     background: color-mix(in srgb, var(--text-muted) 12%, transparent);
     color: var(--text-muted);
 }
+.recon-existing-details > summary {
+    cursor: pointer; font-size: 0.82rem; color: var(--text-muted);
+    padding: 4px 0; list-style: none; user-select: none;
+}
+.recon-existing-details > summary::-webkit-details-marker { display: none; }
+.recon-existing-details > summary::before {
+    content: "\25B6"; display: inline-block; margin-right: 6px;
+    font-size: 0.7rem; transition: transform 0.15s;
+}
+.recon-existing-details[open] > summary::before { transform: rotate(90deg); }
+.recon-existing-details > .recon-list { margin-top: 8px; }
+
+/* Duplicate badge */
+.recon-dup-badge {
+    font-size: 0.72rem; padding: 1px 7px; border-radius: 10px;
+    background: color-mix(in srgb, var(--warning, #e6a700) 18%, transparent);
+    color: var(--warning, #b08600); font-weight: 600;
+}
+.reconciliation-card.has-duplicates {
+    border-color: color-mix(in srgb, var(--warning, #e6a700) 40%, transparent);
+}
+
+/* Duplicate / remap select */
+.recon-dup-select, .recon-remap-select {
+    font-size: 0.82rem; padding: 4px 8px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg); color: var(--text);
+    max-width: 360px; width: 100%;
+}
+.recon-dup-select:focus, .recon-remap-select:focus {
+    outline: 2px solid var(--primary); outline-offset: 1px;
+}
+
+/* Remap row layout */
+.recon-remap-list { display: flex; flex-direction: column; gap: 8px; }
+.recon-remap-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 0.82rem; padding: 6px 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.recon-remap-row code { font-size: 0.82rem; }
+.recon-remap-row .recon-remap-select { margin-left: auto; }
+
+/* Type badge colours for new types */
+.type-badge.type-legal_entity { background: color-mix(in srgb, #9c27b0 14%, transparent); color: #7b1fa2; }
+.type-badge.type-counterparty { background: color-mix(in srgb, #00897b 14%, transparent); color: #00695c; }
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
