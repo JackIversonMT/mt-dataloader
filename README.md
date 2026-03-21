@@ -74,13 +74,14 @@ ngrok config add-authtoken <your-token>
 
 ### 2. Start the tunnel
 
-With the dataloader already running (`uvicorn main:app --reload`), open a **second terminal**:
+With the dataloader already running (`make run`), open a **second terminal**:
 
 ```bash
-ngrok http 8000
+make tunnel
+# or: ngrok http 8000
 ```
 
-ngrok prints a forwarding URL — something like:
+ngrok prints a forwarding URL:
 
 ```
 Forwarding  https://ab12-34-56.ngrok-free.app -> http://localhost:8000
@@ -88,15 +89,24 @@ Forwarding  https://ab12-34-56.ngrok-free.app -> http://localhost:8000
 
 That `https://...ngrok-free.app` URL is your tunnel. It changes every time you restart ngrok (free plan). Paid plans support stable subdomains.
 
-> **Shortcut:** Open **http://127.0.0.1:8000/listen** — the dataloader auto-detects ngrok and displays the full webhook URL for you.
-
 ### 3. Create a webhook endpoint in Modern Treasury
 
-Go to **MT Dashboard → Developers → Webhooks → Add Endpoint**:
+Go to **MT Dashboard → Developers → Webhooks → Add Endpoint**.
+
+In the **Webhook URL** field, paste your ngrok URL with `/webhooks/mt` appended:
+
+```
+https://ab12-34-56.ngrok-free.app/webhooks/mt
+```
+
+> **Important:** Do NOT use `localhost:8000` — MT's servers cannot reach your machine at that address. You must use the `https://` URL from ngrok. The `/webhooks/mt` path at the end is the dataloader's receiver endpoint and is always the same.
+
+> **Tip:** Open **http://127.0.0.1:8000/listen** — the dataloader auto-detects your ngrok tunnel and displays the full webhook URL ready to copy.
+
+Set the remaining fields:
 
 | Field | Value |
 |-------|-------|
-| **Webhook URL** | `https://<your-ngrok-url>/webhooks/mt` (copy from the `/listen` page or ngrok terminal) |
 | **Basic Authentication** | Disabled |
 | **Events to send** | "Receive all events" (recommended) or select specific types |
 
