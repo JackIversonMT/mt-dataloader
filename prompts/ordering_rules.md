@@ -119,6 +119,47 @@ Add `depends_on` to the return only if you need extra ordering beyond that.
 
 ---
 
+## Staged Resources and the DAG
+
+Resources with `staged: true` are included in the DAG for validation but
+**skipped** during execution. Their resolved payloads are saved to disk and
+exposed via "Fire" buttons in the run-detail UI.
+
+**Key ordering constraints:**
+
+1. **Non-staged → staged dependency is forbidden.** If resource A is not
+   staged and depends on (or `$ref:`s) resource B which *is* staged, the
+   validator rejects the config — B won't have an ID when A needs it.
+
+2. **Staged → non-staged is fine.** Staged resources can reference
+   non-staged resources because their IDs are resolved during the normal
+   run and baked into the saved payload.
+
+3. **Staged → staged via `depends_on` is fine.** The engine records
+   ordering intent but does not need to resolve IDs across staged items at
+   run time. The presenter fires them in the intended order from the UI.
+
+4. **Staged → staged via data-field `$ref:` is forbidden.** The engine
+   cannot resolve `$ref:` values for resources that were never created.
+   Use `depends_on` for sequencing between staged items.
+
+**Typical staged chain (PSP marketplace):**
+
+```
+[non-staged: connections, LEs, CPs, IAs — created normally]
+    ↓
+ipd_buyer_deposit     (staged, depends_on: none — refs non-staged IA)
+    ↓
+po_platform_fee       (staged, depends_on: ipd_buyer_deposit)
+po_settle_seller      (staged, depends_on: po_platform_fee)
+    ↓
+po_payout_seller      (staged, depends_on: po_settle_seller)
+```
+
+The presenter fires `ipd_buyer_deposit` first, then each PO in order.
+
+---
+
 ## What NOT to Do
 
 - **Redundant `depends_on`** for refs already in data fields.

@@ -79,6 +79,7 @@ line with `decision_rubrics.md`.
 |------------------------|-------|----------|
 | “Smallest”, “one transfer”, “minimal PSP” | A | `psp_minimal.json` |
 | “Marketplace”, “buyer/seller”, “wallets”, “settle”, “fee”, “Boats-style” | B | `marketplace_demo.json` |
+| “Live demo”, “staged”, “fire one-by-one”, “click-through” | B + staged | `staged_demo.json` |
 | “Reconciliation”, “expected payment”, “match inbound” | C | B + EP/IPD per rubrics |
 | “Ledger”, “double-entry”, “GL” | C | B + ledger sections per rubrics |
 | “Per-payer routing”, “VA”, “sub-accounts for attribution” | C | B + VA per rubrics |
@@ -97,6 +98,7 @@ Start at **B** unless the user chose **A** or **C**.
 | LEs + CPs + sandbox_behavior | Yes | — |
 | Book settle / fee / ACH payout | Yes | — |
 | IPD (sandbox inbound simulation) | If the story needs it | — |
+| `staged` on PO/IPD/EP/LT | If presenter wants live-fire demo | — |
 | `expected_payments` | No | Yes |
 | `virtual_accounts` | No | Yes |
 | Ledgers / categories / ledger TXNs | No | Yes |

@@ -220,6 +220,16 @@ A payment order moves money. This is the most common resource in demos.
 
 Payment orders cannot be deleted.
 
+### Staged payment orders
+
+Set `staged: true` on a PO to defer its API creation until the presenter
+clicks "Fire" in the run-detail UI. Typical use: the settlement / fee /
+payout chain that you want to trigger live during a demo.
+
+A staged PO **may** reference non-staged resources (IAs, CPs) — their IDs
+are resolved during the normal run. A staged PO must **not** use data-field
+`$ref:` to another staged resource; use `depends_on` for ordering.
+
 ---
 
 ## Expected Payments (Reconciliation Only)
@@ -241,6 +251,12 @@ DAG (e.g. IPD `depends_on` the EP), and use matching amounts on the same IA.
 
 `reconciliation_rule_variables` must include `internal_account_id`,
 `direction`, `amount_lower_bound`, `amount_upper_bound`, and `type`.
+
+### Staged expected payments
+
+`staged: true` on an EP defers creation until the presenter fires it. Use
+this when the demo story involves creating the reconciliation matcher live,
+then showing an IPD being matched after.
 
 ---
 
@@ -270,6 +286,15 @@ IPD because their PO fields only reference IAs, not the IPD.
 an explicit `return` with `returnable_id` pointing at the IPD if you need
 an inbound return story.
 
+### Staged incoming payment details
+
+`staged: true` on an IPD defers its `create_async()` call until the
+presenter fires it. The "Fire" action creates the IPD and **polls** until it
+reaches a terminal state (`completed`, `returned`, or `failed`).
+
+Staged IPDs are the classic entry point for a live demo chain: fire the
+inbound deposit, then fire downstream book transfers and payouts one by one.
+
 ---
 
 ## Ledgers & Ledger Accounts (Skip for PSP-Only Demos)
@@ -291,6 +316,12 @@ configs unless the customer asked for ledgering.
 - Expenses/Refunds: `debit`
 
 Ledger transactions can be archived during cleanup but not deleted.
+
+### Staged ledger transactions
+
+`staged: true` on a standalone ledger transaction defers its creation.
+Use when the demo story involves recording journal entries live (e.g.
+revenue recognition after a payment completes).
 
 ---
 
@@ -338,6 +369,40 @@ Reverse a completed/sent payment order. The PO must reach `approved`,
 
 The handler automatically polls the PO status until it reaches a reversible
 state (up to 60s). Not all sandbox connections support reversals.
+
+---
+
+## Staged Resources (Cross-Cutting)
+
+Four resource types support `staged: true`: **payment_order**,
+**incoming_payment_detail**, **expected_payment**, and
+**ledger_transaction**. Staged resources are skipped during the normal run
+and appear as "Fire" buttons in the run-detail UI.
+
+**When to use staged:**
+- The demo involves a presenter clicking through a money-movement story
+  step by step (deposit → fee → settlement → payout).
+- You want to show webhook events arriving in real time after each action.
+
+**When NOT to use staged:**
+- The demo is non-interactive (batch creation, overnight job simulation).
+- The resource is a prerequisite for other non-staged resources.
+
+**Dependency rules (enforced by the validator):**
+1. Non-staged resources must **never** depend on staged resources.
+2. Staged resources **may** depend on non-staged resources (IDs resolve
+   normally).
+3. Staged resources must **not** have data-field `$ref:` to other staged
+   resources (IDs don't exist yet). Use `depends_on` for ordering.
+
+**Typical staged chain (PSP marketplace):**
+```
+ipd_buyer_deposit (staged) → po_platform_fee (staged, depends_on IPD)
+                            → po_settle_seller (staged, depends_on fee)
+                            → po_payout_seller (staged, depends_on settle)
+```
+
+See `examples/staged_demo.json` for a full working example.
 
 ---
 

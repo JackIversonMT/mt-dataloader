@@ -15,6 +15,8 @@ sent to `POST /api/validate-json` without editing.
    - Parties (buyers, sellers, platform)?
    - **Only if they ask:** reconciliation (`expected_payment` + IPD),
      ledgering, virtual accounts, explicit IPD returns.
+   - **Demo mode?** Should any money-movement steps be **staged** (held for
+     live firing during a presentation) rather than created at run time?
 
 2. **Pick scope first** -- Use `generation_profiles.md` (minimal / demo-rich /
    extended). If the ask is vague, ask **one** clarifying question before
@@ -125,6 +127,7 @@ Paste from repo (trim only if size-constrained):
 |------|----------|
 | `examples/marketplace_demo.json` | **Primary.** PSP marketplace: connection `modern_treasury_bank` + `example1`, minimal LEs (auto-mock compliance), CPs, IAs (`*_wallet` refs, **Payment Account** display names), IPD buyer **push**, book fee + settle + ACH payout, ACH **debit** NSF demo. No EP, no VA, no ledger. |
 | `examples/psp_minimal.json` | Smallest PSP slice: two IAs + one `book` transfer (no counterparties, no LEs). |
+| `examples/staged_demo.json` | **Staged demo.** Marketplace with `staged: true` on IPD + 3 POs. Non-staged resources (LEs, CPs, IAs) create normally; staged items appear as "Fire" buttons in the run-detail UI. Shows the IPD-deposit → book-fee → book-settle → ACH-payout chain. |
 
 <PASTE_EXAMPLES_HERE>
 
@@ -195,6 +198,26 @@ Paste from repo (trim only if size-constrained):
     `party_name` or `metadata` (e.g. `account_label`) for labels. The parent
     counterparty has `name`.
 
+17. **Staged resources (`staged: true`)** -- Four resource types support
+    `staged: true`: `payment_order`, `incoming_payment_detail`,
+    `expected_payment`, and `ledger_transaction`. When `staged` is set,
+    the engine **skips the API call** during the normal run; the resolved
+    payload is saved and a "Fire" button appears in the run-detail UI so
+    the presenter can trigger it live during a demo.
+
+    **Rules:**
+    - A **non-staged** resource must **never** depend (via `$ref:` or
+      `depends_on`) on a staged resource or its child refs. The validator
+      rejects this because the staged resource won't exist yet.
+    - A staged resource **may** depend on non-staged resources (their IDs
+      are resolved during the run).
+    - A staged resource must **not** have data-field `$ref:` dependencies
+      on **other** staged resources (the engine cannot resolve IDs that
+      don't exist yet). Use `depends_on` for ordering between staged items.
+    - Staged resources are typically the "live demo" part of a config:
+      inbound deposits, settlements, fees, payouts that the presenter
+      fires one-by-one to tell a story.
+
 ---
 
 ## Validation loop
@@ -230,3 +253,10 @@ Common fixes:
   **remove** these fields from your JSON entirely; the dataloader always
   overwrites them with compliant mock data
 - `string_type` in metadata -- string values only
+- `staged_dependency` -- a non-staged resource depends (via `$ref:` or
+  `depends_on`) on a staged resource or its child ref. Move the dependency
+  chain so that non-staged resources only reference non-staged ones, or mark
+  the dependent resource as `staged: true` too.
+- `staged_data_ref` -- a staged resource has a data-field `$ref:` pointing
+  at another staged resource. Remove the data-field ref (the ID won't exist
+  yet) and use `depends_on` for ordering between staged items instead.

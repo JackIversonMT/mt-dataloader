@@ -191,7 +191,7 @@ direct SDK calls.
 
 ---
 
-## Step 2b — LLM Prompt Rewrite (Staged Resources + Schema)
+## Step 2b — LLM Prompt Rewrite (Staged Resources + Schema) ✅ COMPLETED
 
 Rewrite the `prompts/` kit so the LLM knows about `staged: true`, the DAG
 constraint (non-staged cannot depend on staged), `webhook_secret` on
