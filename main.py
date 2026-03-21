@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import secrets
 import sys
 import time
@@ -36,15 +35,18 @@ from sse_starlette import EventSourceResponse, ServerSentEvent
 from baseline import (
     DiscoveryResult,
     PreflightResult,
+    ReconciliationResult,
     baseline_from_discovery,
     discover_org,
     load_baseline,
+    reconcile_config,
     run_preflight,
     seed_registry,
 )
 from engine import (
     RefRegistry,
     RunManifest,
+    _MANIFEST_RE,
     all_resources,
     build_dag,
     config_hash,
@@ -52,6 +54,7 @@ from engine import (
     execute,
     extract_ref_dependencies,
     generate_run_id,
+    list_manifest_ids,
     typed_ref_for,
 )
 from handlers import DELETABILITY, build_handler_dispatch
@@ -122,6 +125,8 @@ class _SessionState:
     batches: list[list[str]]
     preview_items: list[dict] = field(default_factory=list)
     discovery: DiscoveryResult | None = None
+    reconciliation: ReconciliationResult | None = None
+    skip_refs: set[str] = field(default_factory=set)
     created_at: float = field(default_factory=time.time)
 
 
@@ -438,24 +443,34 @@ async def validate(
             {"preflight": preflight},
         )
 
-    # 4. Dry-run: DAG construction + ref resolution
+    # 4b. Reconcile config against discovered resources
+    reconciliation: ReconciliationResult | None = None
+    skip_refs: set[str] = set()
+    if discovery is not None:
+        reconciliation = reconcile_config(config, discovery)
+        for m in reconciliation.matches:
+            if m.use_existing:
+                registry.register(m.config_ref, m.discovered_id)
+                skip_refs.add(m.config_ref)
+
+    # 5. Dry-run: DAG construction + ref resolution
     try:
-        batches = dry_run(config, baseline_refs)
+        batches = dry_run(config, baseline_refs, skip_refs=skip_refs)
     except CycleError as e:
         return _error_response("Cycle Error", f"Circular dependency: {e}")
     except KeyError as e:
         return _error_response("Reference Error", str(e))
 
-    # 5. Build preview data
+    # 6. Build preview data
     resource_map = {typed_ref_for(r): r for r in all_resources(config)}
     preview_items = _build_preview(batches, resource_map)
 
-    # 6. Pretty-print the config JSON for the editor
+    # 7. Pretty-print the config JSON for the editor
     config_json_text = json.dumps(
         json.loads(raw_json), indent=2, ensure_ascii=False
     )
 
-    # 7. Cache session state
+    # 8. Cache session state
     token = secrets.token_urlsafe(32)
     _sessions[token] = _SessionState(
         session_token=token,
@@ -469,6 +484,8 @@ async def validate(
         batches=batches,
         preview_items=preview_items,
         discovery=discovery,
+        reconciliation=reconciliation,
+        skip_refs=skip_refs,
     )
 
     return templates.TemplateResponse(
@@ -493,6 +510,7 @@ async def validate(
             ),
             "display_phases": DisplayPhase,
             "discovery": discovery,
+            "reconciliation": reconciliation,
             "config_json_text": config_json_text,
         },
     )
@@ -503,8 +521,13 @@ async def revalidate(
     request: Request,
     session_token: str = Form(...),
     config_json: str = Form(...),
+    reconcile_overrides: str | None = Form(None),
 ):
-    """Re-validate edited JSON using credentials from an existing session."""
+    """Re-validate edited JSON using credentials from an existing session.
+
+    ``reconcile_overrides`` is a JSON object mapping config_ref → bool
+    (use_existing) submitted from the reconciliation panel toggles.
+    """
     session = _sessions.get(session_token)
     if not session:
         return _error_response("Session Expired", "Please start over from Setup.")
@@ -546,8 +569,26 @@ async def revalidate(
             {"preflight": preflight},
         )
 
+    # Reconciliation (re-run, then apply overrides)
+    reconciliation: ReconciliationResult | None = None
+    skip_refs: set[str] = set()
+    if discovery is not None:
+        reconciliation = reconcile_config(config, discovery)
+        overrides: dict[str, bool] = {}
+        if reconcile_overrides:
+            try:
+                overrides = json.loads(reconcile_overrides)
+            except json.JSONDecodeError:
+                pass
+        for m in reconciliation.matches:
+            if m.config_ref in overrides:
+                m.use_existing = overrides[m.config_ref]
+            if m.use_existing:
+                registry.register(m.config_ref, m.discovered_id)
+                skip_refs.add(m.config_ref)
+
     try:
-        batches = dry_run(config, baseline_refs)
+        batches = dry_run(config, baseline_refs, skip_refs=skip_refs)
     except CycleError as e:
         return _error_response("Cycle Error", f"Circular dependency: {e}")
     except KeyError as e:
@@ -573,6 +614,8 @@ async def revalidate(
         batches=batches,
         preview_items=preview_items,
         discovery=discovery,
+        reconciliation=reconciliation,
+        skip_refs=skip_refs,
     )
 
     del _sessions[session_token]
@@ -595,6 +638,7 @@ async def revalidate(
             ),
             "display_phases": DisplayPhase,
             "discovery": discovery,
+            "reconciliation": reconciliation,
             "config_json_text": config_json_text,
         },
     )
@@ -671,6 +715,7 @@ async def execute_stream(
                         is_disconnected=lambda: disconnected,
                         runs_dir=settings.runs_dir,
                         on_resource_created=index_resource,
+                        skip_refs=session.skip_refs or None,
                     )
                     html = templates.get_template(
                         "partials/run_complete.html"
@@ -712,9 +757,6 @@ async def execute_stream(
 @app.get("/runs", include_in_schema=False)
 async def runs_page(request: Request):
     return templates.TemplateResponse(request, "runs_page.html", {"title": "Runs"})
-
-
-_MANIFEST_RE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]{8}\.json$")
 
 
 @app.get("/api/runs")

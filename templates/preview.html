@@ -5,6 +5,10 @@
         {% include "partials/discovery_summary.html" %}
     {% endif %}
 
+    {% if reconciliation %}
+        {% include "partials/reconciliation_panel.html" %}
+    {% endif %}
+
     <div class="stats-bar">
         <div class="stat">
             <span class="stat-value">{{ resource_count }}</span>
@@ -35,6 +39,7 @@
               hx-indicator="#revalidate-spinner"
               hx-disabled-elt="button[type=submit]">
             <input type="hidden" name="session_token" value="{{ session_token }}">
+            <input type="hidden" name="reconcile_overrides" id="reconcile-overrides" value="">
             <textarea id="preview-json-editor" name="config_json"
                       class="json-editor" rows="24"
                       spellcheck="false">{{ config_json_text }}</textarea>

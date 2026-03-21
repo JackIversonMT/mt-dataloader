@@ -24,7 +24,7 @@ from loguru import logger
 from modern_treasury import AsyncModernTreasury, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from engine import RefRegistry
+from engine import RefRegistry, all_resources, typed_ref_for
 
 __all__ = [
     "BaselineConnection",
@@ -46,6 +46,10 @@ __all__ = [
     "DiscoveryResult",
     "discover_org",
     "baseline_from_discovery",
+    # Reconciliation
+    "ReconciledResource",
+    "ReconciliationResult",
+    "reconcile_config",
 ]
 
 # ---------------------------------------------------------------------------
@@ -639,3 +643,170 @@ def baseline_from_discovery(discovery: DiscoveryResult) -> BaselineConfig:
         internal_accounts=internal_accounts,
         ledgers=ledgers,
     )
+
+
+# ---------------------------------------------------------------------------
+# Reconciliation — match config resources to discovered org resources
+# ---------------------------------------------------------------------------
+
+from models import (
+    ConnectionConfig,
+    DataLoaderConfig,
+    InternalAccountConfig,
+    LedgerConfig,
+    _BaseResourceConfig,
+)
+
+
+@dataclass
+class ReconciledResource:
+    config_ref: str
+    config_resource: _BaseResourceConfig
+    discovered_id: str
+    discovered_name: str
+    match_reason: str
+    use_existing: bool = True
+
+
+@dataclass
+class ReconciliationResult:
+    matches: list[ReconciledResource] = field(default_factory=list)
+    unmatched_config: list[str] = field(default_factory=list)
+    unmatched_discovered: list[str] = field(default_factory=list)
+
+
+def reconcile_config(
+    config: DataLoaderConfig,
+    discovery: DiscoveryResult,
+) -> ReconciliationResult:
+    """Match config-defined resources against discovered org resources.
+
+    Matching order: connections first (IAs depend on connection resolution),
+    then internal accounts, then ledgers.
+    """
+    result = ReconciliationResult()
+
+    # Track which discovered resources got matched
+    matched_discovered_ids: set[str] = set()
+
+    # Build lookup tables from discovery
+    vendor_id_to_conns: dict[str, list[DiscoveredConnection]] = {}
+    for dc in discovery.connections:
+        vendor_id_to_conns.setdefault(dc.vendor_id, []).append(dc)
+
+    # --- 1. Connections: match entity_id ↔ vendor_id ---
+    config_conn_to_discovered: dict[str, str] = {}
+
+    config_connections = config.connections or []
+    for conn in config_connections:
+        tref = typed_ref_for(conn)
+        candidates = vendor_id_to_conns.get(conn.entity_id, [])
+        if candidates:
+            if len(candidates) > 1:
+                logger.warning(
+                    "Multiple discovered connections share vendor_id='{}'; using first match ({})",
+                    conn.entity_id,
+                    candidates[0].id,
+                )
+            match = candidates[0]
+            result.matches.append(
+                ReconciledResource(
+                    config_ref=tref,
+                    config_resource=conn,
+                    discovered_id=match.id,
+                    discovered_name=match.vendor_name,
+                    match_reason=f"entity_id={conn.entity_id}",
+                )
+            )
+            config_conn_to_discovered[tref] = match.id
+            matched_discovered_ids.add(match.id)
+        else:
+            result.unmatched_config.append(tref)
+
+    # --- 2. Internal accounts: match name + currency + connection ---
+    disc_ia_by_key: dict[tuple[str, str, str], DiscoveredInternalAccount] = {}
+    for dia in discovery.internal_accounts:
+        key = (
+            (dia.name or "").strip().lower(),
+            dia.currency.upper(),
+            dia.connection_id,
+        )
+        disc_ia_by_key[key] = dia
+
+    config_ias = config.internal_accounts or []
+    for ia in config_ias:
+        tref = typed_ref_for(ia)
+        conn_ref_value = ia.connection_id
+        resolved_conn_id = ""
+        if conn_ref_value.startswith("$ref:"):
+            config_conn_ref = conn_ref_value[5:]
+            resolved_conn_id = config_conn_to_discovered.get(config_conn_ref, "")
+        else:
+            resolved_conn_id = conn_ref_value
+
+        key = (ia.name.strip().lower(), ia.currency.upper(), resolved_conn_id)
+        match = disc_ia_by_key.get(key)
+        if match:
+            result.matches.append(
+                ReconciledResource(
+                    config_ref=tref,
+                    config_resource=ia,
+                    discovered_id=match.id,
+                    discovered_name=match.name or match.id[:12],
+                    match_reason=f"name+currency+connection ({ia.name}, {ia.currency})",
+                )
+            )
+            matched_discovered_ids.add(match.id)
+        else:
+            result.unmatched_config.append(tref)
+
+    # --- 3. Ledgers: match by name ---
+    disc_ledger_by_name: dict[str, DiscoveredLedger] = {}
+    for dl in discovery.ledgers:
+        disc_ledger_by_name[dl.name.strip().lower()] = dl
+
+    config_ledgers = config.ledgers or []
+    for ledger in config_ledgers:
+        tref = typed_ref_for(ledger)
+        match = disc_ledger_by_name.get(ledger.name.strip().lower())
+        if match:
+            result.matches.append(
+                ReconciledResource(
+                    config_ref=tref,
+                    config_resource=ledger,
+                    discovered_id=match.id,
+                    discovered_name=match.name,
+                    match_reason=f"name={ledger.name}",
+                )
+            )
+            matched_discovered_ids.add(match.id)
+        else:
+            result.unmatched_config.append(tref)
+
+    # Remaining config resources that aren't reconcilable types
+    reconcilable_types = {"connection", "internal_account", "ledger"}
+    for res in all_resources(config):
+        tref = typed_ref_for(res)
+        if res.resource_type not in reconcilable_types:
+            continue
+        if tref not in [m.config_ref for m in result.matches] and tref not in result.unmatched_config:
+            result.unmatched_config.append(tref)
+
+    # Unmatched discovered resources
+    for dc in discovery.connections:
+        if dc.id not in matched_discovered_ids:
+            result.unmatched_discovered.append(dc.auto_ref)
+    for dia in discovery.internal_accounts:
+        if dia.id not in matched_discovered_ids:
+            result.unmatched_discovered.append(dia.auto_ref)
+    for dl in discovery.ledgers:
+        if dl.id not in matched_discovered_ids:
+            result.unmatched_discovered.append(dl.auto_ref)
+
+    logger.bind(
+        matches=len(result.matches),
+        unmatched_config=len(result.unmatched_config),
+        unmatched_discovered=len(result.unmatched_discovered),
+    ).info("Reconciliation complete")
+
+    return result

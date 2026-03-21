@@ -1,0 +1,78 @@
+{% if reconciliation and reconciliation.matches %}
+<div class="reconciliation-panel">
+    <h3>Resource Reconciliation</h3>
+    <p class="text-muted">
+        These config resources match existing resources in your org.
+        Toggle to "Create new" if you want a fresh resource instead.
+    </p>
+
+    <div class="reconciliation-matches">
+        {% for m in reconciliation.matches %}
+        <div class="reconciliation-card">
+            <div class="recon-card-header">
+                <span class="type-badge type-{{ m.config_ref.split('.')[0] }}">{{ m.config_ref.split('.')[0] }}</span>
+                <code class="recon-config-ref">{{ m.config_ref }}</code>
+            </div>
+            <div class="recon-card-body">
+                <div class="recon-match-info">
+                    <span class="recon-label">Matched to:</span>
+                    <span class="recon-discovered-name">{{ m.discovered_name }}</span>
+                    <code class="recon-discovered-id" title="{{ m.discovered_id }}">{{ m.discovered_id[:16] }}&hellip;</code>
+                </div>
+                <div class="recon-match-reason">
+                    <span class="recon-label">Reason:</span>
+                    <span>{{ m.match_reason }}</span>
+                </div>
+            </div>
+            <div class="recon-card-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox"
+                           name="recon_use_existing_{{ m.config_ref }}"
+                           value="1"
+                           {% if m.use_existing %}checked{% endif %}
+                           onchange="updateReconcileOverrides()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">{{ "Use existing" if m.use_existing else "Create new" }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if reconciliation.unmatched_config %}
+    <div class="recon-section">
+        <h4>Will be created</h4>
+        <div class="recon-list">
+            {% for ref in reconciliation.unmatched_config %}
+            <span class="recon-chip recon-chip-new">{{ ref }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if reconciliation.unmatched_discovered %}
+    <div class="recon-section">
+        <h4>Existing (not referenced by config)</h4>
+        <div class="recon-list">
+            {% for ref in reconciliation.unmatched_discovered %}
+            <span class="recon-chip recon-chip-existing">{{ ref }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function updateReconcileOverrides() {
+    var overrides = {};
+    document.querySelectorAll('[name^="recon_use_existing_"]').forEach(function(cb) {
+        var ref = cb.name.replace('recon_use_existing_', '');
+        overrides[ref] = cb.checked;
+        var label = cb.closest('.recon-card-toggle').querySelector('.toggle-label');
+        if (label) label.textContent = cb.checked ? 'Use existing' : 'Create new';
+    });
+    document.getElementById('reconcile-overrides').value = JSON.stringify(overrides);
+}
+updateReconcileOverrides();
+</script>
+{% endif %}

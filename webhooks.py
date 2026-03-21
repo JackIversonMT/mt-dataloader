@@ -31,7 +31,7 @@ from modern_treasury import AsyncModernTreasury
 from sse_starlette import EventSourceResponse, ServerSentEvent
 from tenacity import RetryError, retry, retry_if_result, stop_after_delay, wait_exponential
 
-from engine import RunManifest, _now_iso
+from engine import RunManifest, _now_iso, list_manifest_ids
 from handlers import DELETABILITY
 from models import ManifestEntry
 
@@ -188,7 +188,7 @@ async def _fanout(entry: WebhookEntry) -> None:
 
 def _render_webhook_html(entry: WebhookEntry, templates: Any) -> str:
     """Render a webhook entry as an HTML snippet using the Jinja2 partial."""
-    return templates.get_template("partials/webhook_row.html").render(wh=entry)
+    return templates.get_template("partials/webhook_card.html").render(wh=entry)
 
 
 # ---------------------------------------------------------------------------
@@ -534,10 +534,18 @@ async def _detect_tunnel() -> str | None:
 
 
 @router.get("/listen", include_in_schema=False)
-async def listen_page(request: Request):
-    """Standalone webhook listener with tunnel auto-detection."""
+async def listen_page(request: Request, run_id: str | None = None):
+    """Standalone webhook listener with tunnel auto-detection and run filter."""
     tunnel_url = await _detect_tunnel()
+    settings = request.app.state.settings
     templates = request.app.state.templates
+
+    webhook_history: list[dict] = []
+    if run_id:
+        webhooks_path = Path(settings.runs_dir) / f"{run_id}_webhooks.jsonl"
+        webhook_history = load_webhooks(webhooks_path)
+
+    run_ids = list_manifest_ids(settings.runs_dir)
 
     return templates.TemplateResponse(
         request,
@@ -545,6 +553,9 @@ async def listen_page(request: Request):
         {
             "tunnel_url": tunnel_url,
             "webhook_path": "/webhooks/mt",
+            "webhook_history": webhook_history,
+            "run_ids": run_ids,
+            "selected_run_id": run_id,
         },
     )
 

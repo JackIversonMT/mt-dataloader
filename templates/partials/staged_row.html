@@ -8,10 +8,12 @@
     <span class="staged-at">{{ s.staged_at.split("T")[1][:8] if "T" in s.staged_at else s.staged_at }}</span>
 
     {% if payload %}
-    <details class="staged-payload">
-        <summary>Payload</summary>
-        <pre>{{ payload|tojson(indent=2) }}</pre>
-    </details>
+    <div class="accordion staged-accordion">
+        <div class="accordion-header" onclick="this.parentNode.classList.toggle('open')">Payload</div>
+        <div class="accordion-panel">
+            <pre>{{ payload|tojson(indent=2) }}</pre>
+        </div>
+    </div>
     {% endif %}
 
     <button class="btn btn-sm btn-primary btn-fire"

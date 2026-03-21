@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -46,6 +47,8 @@ __all__ = [
     "execute",
     "config_hash",
     "RunManifest",
+    "list_manifest_ids",
+    "_now_iso",
 ]
 
 # ---------------------------------------------------------------------------
@@ -234,6 +237,7 @@ def build_dag(
 def dry_run(
     config: DataLoaderConfig,
     baseline_refs: set[str] | None = None,
+    skip_refs: set[str] | None = None,
 ) -> list[list[str]]:
     """Compute execution order without running anything.
 
@@ -327,13 +331,14 @@ def dry_run(
                             f"'{hit}' or also stage '{ref}'."
                         )
 
+    _skip = skip_refs or set()
     batches: list[list[str]] = []
     while ts.is_active():
         ready = ts.get_ready()
-        to_create = [r for r in ready if r in resource_map]
-        baseline = [r for r in ready if r not in resource_map]
-        if baseline:
-            ts.done(*baseline)
+        to_create = [r for r in ready if r in resource_map and r not in _skip]
+        auto_done = [r for r in ready if r not in resource_map or r in _skip]
+        if auto_done:
+            ts.done(*auto_done)
         if to_create:
             batches.append(to_create)
             ts.done(*to_create)
@@ -489,6 +494,7 @@ async def execute(
     is_disconnected: DisconnectCheckFn,
     runs_dir: str = "runs",
     on_resource_created: ResourceCreatedFn | None = None,
+    skip_refs: set[str] | None = None,
 ) -> RunManifest:
     """Execute the DAG with intra-batch concurrency.
 
@@ -496,6 +502,7 @@ async def execute(
     from each batch.  Uses ``asyncio.TaskGroup`` for proper cancellation
     of sibling tasks on failure.
     """
+    _skip = skip_refs or set()
     ts, resource_map = build_dag(config)
     ts.prepare()
 
@@ -516,8 +523,8 @@ async def execute(
 
             ready = ts.get_ready()
 
-            baseline = [r for r in ready if r not in resource_map]
-            to_create = [r for r in ready if r in resource_map]
+            baseline = [r for r in ready if r not in resource_map or r in _skip]
+            to_create = [r for r in ready if r in resource_map and r not in _skip]
 
             if baseline:
                 ts.done(*baseline)
@@ -642,3 +649,22 @@ def _format_exception_detail(exc: BaseException, failed_ref: str) -> str:
             return f"[{failed_ref}] HTTP {exc.status_code}: {msg}"
         return f"[{failed_ref}] HTTP {exc.status_code}: {body}"
     return f"[{failed_ref}] {type(exc).__name__}: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Manifest listing (shared by main.py and webhooks.py)
+# ---------------------------------------------------------------------------
+
+_MANIFEST_RE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]{8}\.json$")
+
+
+def list_manifest_ids(runs_dir: str | Path) -> list[str]:
+    """Return run IDs from manifest files, newest first."""
+    d = Path(runs_dir)
+    if not d.exists():
+        return []
+    return [
+        p.stem
+        for p in sorted(d.glob("*.json"), reverse=True)
+        if _MANIFEST_RE.match(p.name)
+    ]

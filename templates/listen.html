@@ -29,27 +29,85 @@
            target="_blank" rel="noopener">MT Dashboard &rarr; Webhooks</a>.
     </p>
 
-    <div class="listen-actions">
+    <div class="listen-toolbar">
+        <div class="listen-filter">
+            <label for="run-filter">Filter by run:</label>
+            <select id="run-filter">
+                <option value="">All webhooks</option>
+                {% for rid in run_ids %}
+                <option value="{{ rid }}"
+                        {% if selected_run_id == rid %}selected{% endif %}>
+                    {{ rid[:8] }}…{{ rid[-8:] }} ({{ rid[:4] }}-{{ rid[4:6] }}-{{ rid[6:8] }} {{ rid[9:11] }}:{{ rid[11:13] }}:{{ rid[13:15] }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
         <button class="btn btn-sm btn-outline"
-                onclick="fetch('/api/webhooks/test', {method:'POST'}).then(function(){
-                    var el = document.getElementById('webhook-empty');
-                    if (el) el.remove();
-                })">
+                id="btn-test-webhook">
             Send Test Webhook
         </button>
     </div>
 
-    <div class="webhook-feed"
-         hx-ext="sse"
-         sse-connect="/webhooks/stream"
-         sse-swap="webhook"
-         hx-swap="beforeend"
-         hx-target="#live-webhooks">
-
-        <h3>Live Feed</h3>
-        <div id="live-webhooks">
+    <h3>Live Feed</h3>
+    <div id="live-webhooks">
+        {% if webhook_history %}
+            {% for wh in webhook_history %}
+            {% include "partials/webhook_card.html" %}
+            {% endfor %}
+        {% else %}
             <p class="empty-state" id="webhook-empty">Waiting for webhooks&hellip;</p>
-        </div>
+        {% endif %}
     </div>
 </div>
+
+<script>
+(function() {
+    var source = null;
+    var container = document.getElementById('live-webhooks');
+    var filter = document.getElementById('run-filter');
+    var initialRunId = {{ selected_run_id | tojson }} || null;
+
+    function connectSSE(runId) {
+        if (source) source.close();
+        var url = '/webhooks/stream';
+        if (runId) {
+            url += '?run_id=' + encodeURIComponent(runId) + '&no_replay=true';
+        }
+        source = new EventSource(url);
+        source.addEventListener('webhook', function(e) {
+            var empty = document.getElementById('webhook-empty');
+            if (empty) empty.remove();
+            container.insertAdjacentHTML('beforeend', e.data);
+        });
+    }
+
+    filter.addEventListener('change', function() {
+        var runId = this.value || null;
+        container.innerHTML = '';
+        if (runId) {
+            window.history.replaceState(null, '', '/listen?run_id=' + encodeURIComponent(runId));
+            fetch('/listen?run_id=' + encodeURIComponent(runId))
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var cards = doc.getElementById('live-webhooks');
+                    if (cards) container.innerHTML = cards.innerHTML;
+                    connectSSE(runId);
+                });
+        } else {
+            window.history.replaceState(null, '', '/listen');
+            connectSSE(null);
+        }
+    });
+
+    connectSSE(initialRunId);
+
+    document.getElementById('btn-test-webhook').addEventListener('click', function() {
+        fetch('/api/webhooks/test', {method: 'POST'}).then(function() {
+            var empty = document.getElementById('webhook-empty');
+            if (empty) empty.remove();
+        });
+    });
+})();
+</script>
 {% endblock %}

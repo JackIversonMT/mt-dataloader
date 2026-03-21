@@ -7,13 +7,13 @@
     <div class="run-detail-header">
         <h2>Run <code>{{ run_id }}</code></h2>
         <span class="run-status status-{{ manifest.status }}">{{ manifest.status }}</span>
+        <a href="/listen?run_id={{ run_id }}" class="btn btn-sm btn-outline">View webhooks</a>
     </div>
 
     <div class="tab-strip">
         <button class="tab-btn active" data-tab="config">Config</button>
         <button class="tab-btn" data-tab="resources">Resources ({{ manifest.resources_created|length }})</button>
         <button class="tab-btn" data-tab="staged">Staged ({{ manifest.resources_staged|length }})</button>
-        <button class="tab-btn" data-tab="webhooks">Webhooks</button>
     </div>
 
     <!-- Config tab -->
@@ -97,25 +97,6 @@
                 {% endfor %}
             {% else %}
                 <p class="empty-state">No staged resources in this run.</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Webhooks tab -->
-    <div class="tab-panel" id="tab-webhooks"
-         hx-ext="sse"
-         sse-connect="/webhooks/stream?run_id={{ run_id }}&no_replay=true"
-         sse-swap="webhook"
-         hx-swap="beforeend"
-         hx-target="#webhook-list">
-
-        <div id="webhook-list">
-            {% if webhook_history %}
-                {% for wh in webhook_history %}
-                {% include "partials/webhook_row.html" %}
-                {% endfor %}
-            {% else %}
-                <p class="empty-state webhook-empty" id="webhook-empty">No webhooks received yet.</p>
             {% endif %}
         </div>
     </div>
