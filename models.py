@@ -844,6 +844,7 @@ class ExpectedPaymentConfig(MetadataMixin, _BaseResourceConfig):
     reconciliation_groups: dict | None = None
     reconciliation_rule_variables: list[ReconciliationRuleVariable] | None = None
     ledger_transaction: InlineLedgerTransactionConfig | None = None
+    staged: bool = Field(default=False, exclude=True)
 
     @model_validator(mode="after")
     def _business_level_required_fields(self) -> ExpectedPaymentConfig:
@@ -885,6 +886,7 @@ class PaymentOrderConfig(MetadataMixin, _BaseResourceConfig):
     effective_date: str | None = None
     ledger_transaction: InlineLedgerTransactionConfig | None = None
     line_items: list[LineItemConfig] | None = None
+    staged: bool = Field(default=False, exclude=True)
 
     @model_validator(mode="after")
     def _credit_needs_receiver(self) -> PaymentOrderConfig:
@@ -920,6 +922,7 @@ class IncomingPaymentDetailConfig(_BaseResourceConfig):
     virtual_account_id: RefStr | None = None
     as_of_date: str | None = None
     description: str | None = None
+    staged: bool = Field(default=False, exclude=True)
 
 
 class LedgerTransactionConfig(MetadataMixin, _BaseResourceConfig):
@@ -936,6 +939,7 @@ class LedgerTransactionConfig(MetadataMixin, _BaseResourceConfig):
     status: Literal["archived", "pending", "posted"] | None = None
     ledgerable_type: str | None = None
     ledgerable_id: RefStr | None = None
+    staged: bool = Field(default=False, exclude=True)
 
 
 class ReturnConfig(_BaseResourceConfig):

@@ -56,7 +56,7 @@ _seen_ids: set[str] = set()
 
 _correlation_index: dict[str, tuple[str, str]] = {}
 
-_webhook_listeners: list[tuple[str | None, asyncio.Queue]] = []
+_webhook_listeners: list[tuple[str | None, asyncio.Queue[WebhookEntry]]] = []
 
 _sig_client: AsyncModernTreasury | None = None
 
