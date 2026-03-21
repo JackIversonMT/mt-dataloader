@@ -59,7 +59,7 @@ from engine import (
 )
 from handlers import DELETABILITY, build_handler_dispatch
 from models import AppSettings, DataLoaderConfig, DisplayPhase
-from webhooks import router as webhook_router, index_resource
+from webhooks import router as webhook_router, index_resource, rebuild_correlation_index
 
 # ---------------------------------------------------------------------------
 # Template engine (module-level — Jinja2 needs no async setup)
@@ -184,6 +184,7 @@ async def lifespan(app: FastAPI):
     app.state.baseline_path = settings.baseline_path
     _configure_logging(settings)
 
+    rebuild_correlation_index(settings.runs_dir)
     logger.bind(baseline_path=settings.baseline_path).info("Dataloader started")
     yield
     logger.info("Dataloader shutting down")

@@ -309,6 +309,11 @@ configs unless the customer asked for ledgering.
 | Standalone ledger transaction | `ledger_transactions` | `ledger_entries[]` (at least one debit + one credit, must balance) |
 | Inline ledger transaction on PO | `ledger_transaction` field on `payment_orders` | Same `ledger_entries` structure |
 
+When a PO includes an inline `ledger_transaction`, the created ledger
+transaction ID is auto-registered as a child ref:
+`$ref:payment_order.<key>.ledger_transaction`. Downstream resources can
+reference it directly.
+
 **Normal balance conventions:**
 - Assets (Cash, AR): `debit`
 - Liabilities (AP): `credit`

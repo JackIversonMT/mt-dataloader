@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import secrets
+import tempfile
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -91,10 +93,17 @@ def ensure_run_indexed(run_id: str, manifest: Any) -> None:
 
     Called when loading a run detail page for an older run whose
     resources may not be in memory (e.g. after server restart).
+    Indexes both primary IDs and child_refs.
     """
     for entry in manifest.resources_created:
         if entry.created_id not in _correlation_index:
             _correlation_index[entry.created_id] = (run_id, entry.typed_ref)
+        for child_key, child_id in entry.child_refs.items():
+            if child_id not in _correlation_index:
+                _correlation_index[child_id] = (
+                    run_id,
+                    f"{entry.typed_ref}.{child_key}",
+                )
 
 
 def load_webhooks(path: Path) -> list[dict]:
@@ -110,6 +119,90 @@ def load_webhooks(path: Path) -> list[dict]:
             except json.JSONDecodeError:
                 pass
     return entries
+
+
+def rebuild_correlation_index(runs_dir: str) -> int:
+    """Load all manifests and populate ``_correlation_index``.
+
+    Called once at startup from ``lifespan()`` so that webhooks arriving
+    after a server restart can be matched to historical runs.  Also
+    re-correlates entries in ``_webhooks_unmatched.jsonl`` — any that now
+    match are moved to their run-specific JSONL file.
+
+    Returns the total number of IDs indexed.
+    """
+    count = 0
+    runs_path = Path(runs_dir)
+    for run_id in list_manifest_ids(runs_dir):
+        manifest = RunManifest.load(runs_path / f"{run_id}.json")
+        for entry in manifest.resources_created:
+            _correlation_index[entry.created_id] = (run_id, entry.typed_ref)
+            count += 1
+            for child_key, child_id in entry.child_refs.items():
+                _correlation_index[child_id] = (
+                    run_id,
+                    f"{entry.typed_ref}.{child_key}",
+                )
+                count += 1
+
+    recovered = _recorrelate_unmatched(runs_dir)
+    if recovered:
+        logger.info("Re-correlated {} previously unmatched webhooks", recovered)
+
+    logger.info(
+        "Correlation index rebuilt: {} IDs from {} runs",
+        count,
+        len(list_manifest_ids(runs_dir)),
+    )
+    return count
+
+
+def _recorrelate_unmatched(runs_dir: str) -> int:
+    """Scan ``_webhooks_unmatched.jsonl`` and move matched entries.
+
+    For each entry whose ``raw.data`` now matches the index, updates
+    ``run_id`` and ``typed_ref``, appends to the run-specific JSONL,
+    and atomically rewrites the unmatched file without them.
+    """
+    unmatched_path = Path(runs_dir) / "_webhooks_unmatched.jsonl"
+    if not unmatched_path.exists():
+        return 0
+
+    entries = load_webhooks(unmatched_path)
+    if not entries:
+        return 0
+
+    still_unmatched: list[dict] = []
+    recovered = 0
+
+    for entry in entries:
+        raw = entry.get("raw", {})
+        data = raw.get("data", {})
+        run_id, typed_ref = _correlate(data)
+        if run_id:
+            entry["run_id"] = run_id
+            entry["typed_ref"] = typed_ref
+            run_path = Path(runs_dir) / f"{run_id}_webhooks.jsonl"
+            with open(run_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, default=str) + "\n")
+            recovered += 1
+        else:
+            still_unmatched.append(entry)
+
+    tmp = tempfile.NamedTemporaryFile(
+        dir=runs_dir, mode="w", suffix=".tmp", delete=False
+    )
+    try:
+        for entry in still_unmatched:
+            tmp.write(json.dumps(entry, default=str) + "\n")
+        tmp.close()
+        os.replace(tmp.name, str(unmatched_path))
+    except Exception:
+        tmp.close()
+        os.unlink(tmp.name)
+        raise
+
+    return recovered
 
 
 # ---------------------------------------------------------------------------
@@ -141,10 +234,37 @@ def _get_sig_client(secret: str) -> AsyncModernTreasury:
     return _sig_client
 
 
-def _correlate(resource_id: str) -> tuple[str | None, str | None]:
-    """Look up a resource_id in the correlation index."""
-    if resource_id in _correlation_index:
-        return _correlation_index[resource_id]
+_CORRELATION_FIELDS = (
+    "internal_account_id",
+    "originating_account_id",
+    "receiving_account_id",
+    "counterparty_id",
+    "legal_entity_id",
+    "ledger_transaction_id",
+    "ledger_account_id",
+    "batch_id",
+    "returnable_id",
+    "virtual_account_id",
+    "ledgerable_id",
+)
+
+
+def _correlate(data: dict) -> tuple[str | None, str | None]:
+    """Match a webhook payload to a run via the correlation index.
+
+    Checks ``data.id`` first (exact resource match), then scans reference
+    fields like ``internal_account_id``, ``originating_account_id``, etc.
+    for derivative webhooks (balance reports, transactions, returns).
+    """
+    if not isinstance(data, dict):
+        return None, None
+    primary = data.get("id", "")
+    if primary and primary in _correlation_index:
+        return _correlation_index[primary]
+    for field_name in _CORRELATION_FIELDS:
+        val = data.get(field_name)
+        if isinstance(val, str) and val in _correlation_index:
+            return _correlation_index[val]
     return None, None
 
 
@@ -242,7 +362,7 @@ async def receive_webhook(request: Request):
         logger.debug("Duplicate webhook {} — skipping", webhook_id)
         return {"ok": True, "duplicate": True}
 
-    run_id, typed_ref = _correlate(resource_id)
+    run_id, typed_ref = _correlate(data)
 
     entry = WebhookEntry(
         received_at=datetime.now(timezone.utc).isoformat(),
@@ -369,7 +489,10 @@ async def _fire_payment_order(
     result = await client.payment_orders.create(
         **resolved, idempotency_key=idempotency_key,
     )
-    return {"created_id": result.id}
+    child_refs: dict[str, str] = {}
+    if result.ledger_transaction_id:
+        child_refs["ledger_transaction"] = result.ledger_transaction_id
+    return {"created_id": result.id, "child_refs": child_refs}
 
 
 async def _fire_expected_payment(
@@ -484,6 +607,7 @@ async def fire_staged(
                 created_id=result["created_id"],
                 created_at=_now_iso(),
                 deletable=DELETABILITY.get(resource_type, False),
+                child_refs=result.get("child_refs", {}),
             )
         )
         manifest.resources_staged = [

@@ -531,9 +531,14 @@ async def create_payment_order(
         ).error("Payment order API error")
         raise
 
+    child_refs: dict[str, str] = {}
+    if result.ledger_transaction_id:
+        child_refs["ledger_transaction"] = result.ledger_transaction_id
+
     return HandlerResult(
         created_id=result.id,
         resource_type="payment_order",
+        child_refs=child_refs,
         deletable=DELETABILITY["payment_order"],
     )
 

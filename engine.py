@@ -456,6 +456,7 @@ class RunManifest:
                     "created_id": e.created_id,
                     "created_at": e.created_at,
                     "deletable": e.deletable,
+                    "child_refs": e.child_refs,
                     "cleanup_status": e.cleanup_status,
                 }
                 for e in self.resources_created
@@ -571,6 +572,7 @@ async def execute(
                         created_id=result.created_id,
                         created_at=_now_iso(),
                         deletable=result.deletable,
+                        child_refs=result.child_refs,
                     )
                 )
                 manifest.write(runs_dir)

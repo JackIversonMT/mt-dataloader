@@ -1095,6 +1095,7 @@ class ManifestEntry:
     created_id: str
     created_at: str
     deletable: bool
+    child_refs: dict[str, str] = field(default_factory=dict)
     cleanup_status: str | None = None
 
 

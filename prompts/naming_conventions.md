@@ -76,9 +76,14 @@ dotted selector appended to the parent ref:
 | virtual_account | `ledger_account` | `$ref:virtual_account.va_alice.ledger_account` |
 | incoming_payment_detail | `transaction` | `$ref:incoming_payment_detail.ipd_buyer_deposit.transaction` |
 | incoming_payment_detail | `ledger_transaction` | `$ref:incoming_payment_detail.ipd_buyer_deposit.ledger_transaction` |
+| payment_order | `ledger_transaction` | `$ref:payment_order.po_pay_bob.ledger_transaction` |
 
 `account[N]` is 0-indexed and matches the order of accounts in the
 counterparty's `accounts[]` array.
+
+`payment_order.ledger_transaction` is only available when the PO includes
+an inline `ledger_transaction` field. If the PO has no inline ledger
+transaction, this child ref is not registered.
 
 ---
 
