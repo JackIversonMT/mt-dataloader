@@ -292,6 +292,7 @@
             "amount": 10185000,
             "originating_account_id": "$ref:internal_account.buyer_john_wallet",
             "receiving_account_id": "$ref:internal_account.seller_jacks_wallet",
+            "depends_on": ["$ref:incoming_payment_detail.ipd_buyer_deposit"],
             "description": "Marketplace settlement — net to seller for BOAT-2026-0847",
             "metadata": {
                 "transaction_type": "marketplace_settlement",
@@ -299,8 +300,7 @@
                 "boat_description": "2026 Sea Ray 320 Sundancer",
                 "gross_amount_cents": "10500000",
                 "fee_amount_cents": "315000",
-                "fee_rate_pct": "3.0",
-                "source_deposit": "$ref:incoming_payment_detail.ipd_buyer_deposit"
+                "fee_rate_pct": "3.0"
             }
         },
         {
@@ -310,13 +310,13 @@
             "amount": 315000,
             "originating_account_id": "$ref:internal_account.buyer_john_wallet",
             "receiving_account_id": "$ref:internal_account.boats_group_revenue",
+            "depends_on": ["$ref:incoming_payment_detail.ipd_buyer_deposit"],
             "description": "Platform fee — 3% commission on BOAT-2026-0847 sale",
             "metadata": {
                 "transaction_type": "platform_fee",
                 "listing_id": "BOAT-2026-0847",
                 "fee_type": "marketplace_commission",
-                "fee_rate_pct": "3.0",
-                "source_deposit": "$ref:incoming_payment_detail.ipd_buyer_deposit"
+                "fee_rate_pct": "3.0"
             }
         },
         {
@@ -326,11 +326,11 @@
             "amount": 10185000,
             "originating_account_id": "$ref:internal_account.seller_jacks_wallet",
             "receiving_account_id": "$ref:counterparty.seller_jacks_cp.account[0]",
+            "depends_on": ["$ref:payment_order.po_settle_to_seller"],
             "description": "Seller payout — Captain Jack's Marine Sales for BOAT-2026-0847",
             "metadata": {
                 "transaction_type": "seller_payout",
                 "listing_id": "BOAT-2026-0847",
-                "settlement_ref": "$ref:payment_order.po_settle_to_seller",
                 "seller_user_id": "USR-SELLER-20089"
             }
         },

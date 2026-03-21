@@ -1,0 +1,113 @@
+{
+    "connections": [
+        {
+            "ref": "demo_bank",
+            "entity_id": "example1"
+        }
+    ],
+
+    "legal_entities": [
+        {
+            "ref": "widgetworks_inc",
+            "legal_entity_type": "business",
+            "business_name": "WidgetWorks Inc",
+            "date_formed": "2020-01-10",
+            "legal_structure": "corporation",
+            "country_of_incorporation": "US",
+            "website": "https://widgetworks.example.com",
+            "email": "finance@widgetworks.example.com",
+            "identifications": [
+                {
+                    "id_number": "381204567",
+                    "id_type": "us_ein",
+                    "issuing_country": "US"
+                }
+            ],
+            "addresses": [
+                {
+                    "address_types": ["business"],
+                    "line1": "500 Commerce Blvd",
+                    "line2": "Floor 12",
+                    "locality": "Austin",
+                    "region": "TX",
+                    "postal_code": "78701",
+                    "country": "US"
+                }
+            ],
+            "metadata": {
+                "erp_entity_id": "ENT-WW-001",
+                "industry": "manufacturing"
+            }
+        },
+        {
+            "ref": "jane_doe",
+            "legal_entity_type": "individual",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "date_of_birth": "1992-05-14",
+            "email": "jane.doe@example.com",
+            "citizenship_country": "US",
+            "identifications": [
+                {
+                    "id_number": "214508731",
+                    "id_type": "us_ssn",
+                    "issuing_country": "US"
+                }
+            ],
+            "addresses": [
+                {
+                    "address_types": ["residential"],
+                    "line1": "88 Oak Lane",
+                    "locality": "Denver",
+                    "region": "CO",
+                    "postal_code": "80202",
+                    "country": "US"
+                }
+            ],
+            "metadata": {
+                "crm_contact_id": "CONT-JD-4401"
+            }
+        }
+    ],
+
+    "counterparties": [
+        {
+            "ref": "vendor_widgetworks_cp",
+            "name": "WidgetWorks Inc",
+            "legal_entity_id": "$ref:legal_entity.widgetworks_inc",
+            "accounts": [
+                {
+                    "account_type": "checking",
+                    "party_name": "WidgetWorks Inc",
+                    "party_type": "business",
+                    "sandbox_behavior": "success",
+                    "metadata": {
+                        "bank_name": "Chase",
+                        "account_alias": "primary_operating"
+                    }
+                }
+            ],
+            "metadata": {
+                "erp_vendor_id": "VEND-WW-001",
+                "payment_terms": "net_30"
+            }
+        },
+        {
+            "ref": "customer_jane_cp",
+            "name": "Jane Doe",
+            "legal_entity_id": "$ref:legal_entity.jane_doe",
+            "accounts": [
+                {
+                    "account_type": "checking",
+                    "party_name": "Jane Doe",
+                    "party_type": "individual",
+                    "sandbox_behavior": "success"
+                }
+            ],
+            "metadata": {
+                "crm_customer_id": "CUST-JD-4401",
+                "customer_segment": "individual"
+            }
+        }
+    ]
+}

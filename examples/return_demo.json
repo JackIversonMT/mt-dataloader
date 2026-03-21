@@ -1,0 +1,54 @@
+{
+    "connections": [
+        {
+            "ref": "demo_bank",
+            "entity_id": "example1"
+        }
+    ],
+
+    "counterparties": [
+        {
+            "ref": "vendor_nsf_cp",
+            "name": "NSF Test Vendor",
+            "accounts": [
+                {
+                    "account_type": "checking",
+                    "party_name": "NSF Test Vendor",
+                    "party_type": "business",
+                    "sandbox_behavior": "return",
+                    "sandbox_return_code": "R01"
+                }
+            ],
+            "metadata": {
+                "erp_vendor_id": "VEND-DEMO-NSF",
+                "demo_purpose": "R01_insufficient_funds"
+            }
+        }
+    ],
+
+    "internal_accounts": [
+        {
+            "ref": "ops_checking",
+            "connection_id": "$ref:connection.demo_bank",
+            "name": "Operations Checking",
+            "party_name": "Demo Corp",
+            "currency": "USD"
+        }
+    ],
+
+    "payment_orders": [
+        {
+            "ref": "po_will_return",
+            "type": "ach",
+            "amount": 75000,
+            "direction": "credit",
+            "originating_account_id": "$ref:internal_account.ops_checking",
+            "receiving_account_id": "$ref:counterparty.vendor_nsf_cp.account[0]",
+            "description": "Payment that will auto-return R01 via sandbox behavior",
+            "metadata": {
+                "invoice_id": "INV-DEMO-0001",
+                "expected_outcome": "R01_return"
+            }
+        }
+    ]
+}

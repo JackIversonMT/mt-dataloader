@@ -1,0 +1,49 @@
+{
+    "connections": [
+        {
+            "ref": "demo_bank",
+            "entity_id": "example1"
+        }
+    ],
+
+    "internal_accounts": [
+        {
+            "ref": "wallet_sender",
+            "connection_id": "$ref:connection.demo_bank",
+            "name": "Sender Wallet",
+            "party_name": "Sender User",
+            "currency": "USD",
+            "metadata": {
+                "wallet_type": "user",
+                "user_id": "USR-001"
+            }
+        },
+        {
+            "ref": "wallet_receiver",
+            "connection_id": "$ref:connection.demo_bank",
+            "name": "Receiver Wallet",
+            "party_name": "Receiver User",
+            "currency": "USD",
+            "metadata": {
+                "wallet_type": "user",
+                "user_id": "USR-002"
+            }
+        }
+    ],
+
+    "payment_orders": [
+        {
+            "ref": "po_book_transfer",
+            "type": "book",
+            "amount": 250000,
+            "direction": "credit",
+            "originating_account_id": "$ref:internal_account.wallet_sender",
+            "receiving_account_id": "$ref:internal_account.wallet_receiver",
+            "description": "Internal fund transfer — sender to receiver",
+            "metadata": {
+                "transaction_type": "internal_transfer",
+                "order_id": "ORD-2026-0100"
+            }
+        }
+    ]
+}

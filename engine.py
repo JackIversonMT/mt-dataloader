@@ -214,6 +214,9 @@ def build_dag(
     for resource in all_resources(config):
         ref = typed_ref_for(resource)
         deps = extract_ref_dependencies(resource)
+        for explicit_dep in resource.depends_on:
+            if explicit_dep.startswith("$ref:"):
+                deps.add(explicit_dep[5:])
         expanded = set(deps)
         for dep in deps:
             parts = dep.split(".")
@@ -266,6 +269,17 @@ def dry_run(
                     f"Unresolvable ref '$ref:{dep}' in resource '{ref}'. "
                     f"It must be defined in the config or baseline.yaml."
                 )
+
+    for ref, resource in resource_map.items():
+        for dep_str in resource.depends_on:
+            if dep_str.startswith("$ref:"):
+                dep = dep_str[5:]
+                if not _is_known_or_child(dep):
+                    raise KeyError(
+                        f"Unresolvable depends_on ref '$ref:{dep}' in "
+                        f"resource '{ref}'. It must be defined in the "
+                        f"config or baseline."
+                    )
 
     batches: list[list[str]] = []
     while ts.is_active():

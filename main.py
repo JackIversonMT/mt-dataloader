@@ -196,6 +196,37 @@ def _make_emit_sse(
     return emit
 
 
+def _format_validation_errors(exc: ValidationError) -> list[dict]:
+    """Transform Pydantic ValidationError into LLM-readable structured list.
+
+    Each entry has ``path`` (dotted with array indices), ``type``
+    (Pydantic error type code), and ``message`` (human-readable).
+    """
+    errors = []
+    for err in exc.errors():
+        path = _format_loc(err["loc"])
+        errors.append({
+            "path": path,
+            "type": err["type"],
+            "message": err["msg"],
+        })
+    return errors
+
+
+def _format_loc(loc: tuple) -> str:
+    """Join Pydantic loc tuple into a dotted path with array indices."""
+    parts: list[str] = []
+    for item in loc:
+        if isinstance(item, int):
+            if parts:
+                parts[-1] = f"{parts[-1]}[{item}]"
+            else:
+                parts.append(str(item))
+        else:
+            parts.append(str(item))
+    return ".".join(parts)
+
+
 def _error_html(title: str, detail: str) -> str:
     """Render an error alert partial."""
     return templates.get_template("partials/error_alert.html").render(
@@ -236,7 +267,8 @@ def _build_preview(
                     "deletable": DELETABILITY.get(resource.resource_type, False),
                     "has_metadata": bool(meta),
                     "metadata": meta,
-                    "deps": list(extract_ref_dependencies(resource)),
+                    "deps": list(extract_ref_dependencies(resource))
+                    + [d[5:] for d in getattr(resource, "depends_on", []) if d.startswith("$ref:")],
                     "sandbox_info": sandbox_info,
                 }
             )
@@ -265,6 +297,49 @@ def _extract_sandbox_info(resource: Any) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+@app.get("/api/schema")
+async def get_schema():
+    """Export the full DataLoaderConfig JSON Schema.
+
+    Returns the Pydantic-generated schema (~31KB) with all type
+    definitions, enums, required fields, and descriptions.  External
+    LLM workflows can use this as a generation target.
+    """
+    return DataLoaderConfig.model_json_schema()
+
+
+@app.post("/api/validate-json")
+async def validate_json(request: Request):
+    """Programmatic JSON validation endpoint for LLM repair loops.
+
+    Accepts raw JSON body, validates it against DataLoaderConfig, and
+    returns structured errors suitable for feeding back to an LLM.
+    """
+    try:
+        body = await request.body()
+        config = DataLoaderConfig.model_validate_json(body)
+    except ValidationError as e:
+        return {"valid": False, "errors": _format_validation_errors(e)}
+
+    try:
+        batches = dry_run(config)
+    except CycleError as e:
+        return {"valid": False, "errors": [
+            {"path": "(dag)", "type": "cycle_error", "message": str(e)}
+        ]}
+    except KeyError as e:
+        return {"valid": False, "errors": [
+            {"path": "(dag)", "type": "unresolvable_ref", "message": str(e)}
+        ]}
+
+    return {
+        "valid": True,
+        "resource_count": sum(len(b) for b in batches),
+        "batch_count": len(batches),
+        "errors": [],
+    }
+
+
 @app.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/setup")
@@ -290,7 +365,12 @@ async def validate(
     try:
         config = DataLoaderConfig.model_validate_json(raw_json)
     except ValidationError as e:
-        return _error_response("Config Validation Error", str(e))
+        structured = _format_validation_errors(e)
+        detail_lines = [f"• {err['path']}: {err['message']}" for err in structured]
+        return _error_response(
+            "Config Validation Error",
+            "\n".join(detail_lines) or str(e),
+        )
 
     # 2. Ping MT to validate API key
     async with AsyncModernTreasury(

@@ -115,37 +115,38 @@ The loader does not stamp its own metadata by default. The preview screen shows 
 
 ## Example Configs
 
-### `examples/full_demo.json`
+Nine example configs organized by pattern and complexity. Each is self-bootstrapping and follows the LLM Prompt Kit naming conventions.
 
-Exercises most configurable resource types (26 resources across 4 DAG batches). Includes:
-- Legal entities (business + individual with full KYB/KYC), ledger, counterparties with inline accounts
-- Sandbox test counterparties (success + auto-return R01)
-- Ledger accounts, categories with memberships and nesting
-- Internal account, external account, virtual account
-- Payment orders with inline ledger transactions
-- Expected payment with reconciliation rules
-- Incoming payment detail, standalone ledger transaction
-- Rich business metadata on all supported types
+### Focused Examples (one pattern each)
+
+| Example | Resources | Batches | Pattern |
+|---------|-----------|---------|---------|
+| `minimal_payment.json` | 4 | 3 | Simplest end-to-end: connection + counterparty + IA + PO |
+| `counterparty_onboarding.json` | 5 | 2 | Full KYB/KYC onboarding: business + individual LEs linked to CPs |
+| `expected_payment_recon.json` | 4 | 3 | EP + IPD auto-reconciliation on same IA |
+| `ledger_double_entry.json` | 12 | 3 | Ledger + chart of accounts + standalone transactions + categories |
+| `return_demo.json` | 4 | 3 | Sandbox auto-return: `sandbox_behavior: "return"` with R01 |
+| `book_transfer.json` | 4 | 3 | Internal fund movement: `type: book` between two IA wallets |
+| `virtual_account_collection.json` | 6 | 4 | Per-payer attribution: VA + EP + IPD for rent collection |
+
+### Comprehensive Examples
+
+| Example | Resources | Batches | Pattern |
+|---------|-----------|---------|---------|
+| `full_demo.json` | 26 | 4 | B2B AP demo: LEs, ledger, inline LTs, refund, auto-return, VA, categories |
+| `marketplace_demo.json` | 18 | 5 | Boats Group PSP marketplace: wallets, IPD → settlement → fee → payout chain |
 
 ### `examples/marketplace_demo.json`
 
-**Boats Group x Modern Treasury PSP marketplace demo** (18 resources across 5 DAG batches). Models a complete boat purchase flow on a payment service provider (PSP) architecture:
-
+Models a complete boat purchase flow on a PSP architecture:
 - **Onboarding**: 4 legal entities (platform, buyer, seller-dealer, NSF buyer) with full KYB/KYC
 - **Sub-accounts**: 4 internal accounts functioning as user wallets (platform revenue, buyer, seller, NSF buyer)
 - **Money in**: Simulated buyer deposit ($105,000 via IPD) with auto-reconciliation against an expected payment
-- **On-platform settlement**: Book transfers split funds — net ($101,850) to seller wallet, 3% fee ($3,150) to platform revenue
+- **On-platform settlement**: Book transfers via `depends_on` split funds — net ($101,850) to seller wallet, 3% fee ($3,150) to platform revenue
 - **Payout**: ACH credit sends seller proceeds to their external bank
 - **Return handling**: NSF buyer's ACH debit auto-returns R01 via sandbox test counterparty
 
-The config uses `$ref:` values in metadata to enforce correct money-flow ordering through the DAG (deposit → settlement → payout) without any code changes. No virtual accounts, no ledgers — internal accounts serve as wallets.
-
-### `examples/payments_only.json`
-
-Lightweight config (6 resources, 3 batches). Demonstrates:
-- Expected payment with matching reconciliation amounts
-- Payment order against a sandbox test counterparty (success)
-- Incoming payment detail that triggers auto-reconciliation
+No virtual accounts, no ledgers — internal accounts serve as wallets.
 
 ## Execution Flow
 
@@ -179,7 +180,8 @@ dataloader/
   baseline.yaml        Static "clean sandbox" definition (discovery fallback)
   templates/           Jinja2 + HTMX frontend (17 templates)
   static/style.css     CSS with status colors, type badges, animations
-  examples/            Example JSON configs
+  examples/            9 example JSON configs (focused + comprehensive)
+  prompts/             LLM Prompt Kit (decision rubrics, naming, ordering, metadata, profiles, system prompt)
   runs/                Run manifest JSON files (created at runtime)
   logs/                Structured log files (created at runtime)
 ```

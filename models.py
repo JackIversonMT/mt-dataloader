@@ -177,6 +177,17 @@ class _BaseResourceConfig(BaseModel):
         description="Unique key for this resource within its type",
     )
 
+    depends_on: list[RefStr] = Field(
+        default_factory=list,
+        exclude=True,
+        description=(
+            "Explicit ordering dependencies. Use when a resource must wait "
+            "for another that it does NOT reference in a data field. "
+            "Example: a book transfer that must wait for an IPD to settle "
+            "before moving the deposited funds. Excluded from API payloads."
+        ),
+    )
+
     @field_validator("ref")
     @classmethod
     def _ref_must_be_simple_key(cls, v: str) -> str:

@@ -1,0 +1,88 @@
+{
+    "connections": [
+        {
+            "ref": "demo_bank",
+            "entity_id": "example1"
+        }
+    ],
+
+    "counterparties": [
+        {
+            "ref": "tenant_alice_cp",
+            "name": "Alice Tenant",
+            "accounts": [
+                {
+                    "account_type": "checking",
+                    "party_name": "Alice Tenant",
+                    "party_type": "individual",
+                    "sandbox_behavior": "success"
+                }
+            ],
+            "metadata": {
+                "tenant_id": "TEN-1001",
+                "property_id": "PROP-9"
+            }
+        }
+    ],
+
+    "internal_accounts": [
+        {
+            "ref": "collections_account",
+            "connection_id": "$ref:connection.demo_bank",
+            "name": "Rent Collections",
+            "party_name": "PropCo Management",
+            "currency": "USD",
+            "metadata": {
+                "account_purpose": "rent_collection"
+            }
+        }
+    ],
+
+    "virtual_accounts": [
+        {
+            "ref": "va_tenant_alice",
+            "name": "Alice Tenant — Unit 9B",
+            "internal_account_id": "$ref:internal_account.collections_account",
+            "counterparty_id": "$ref:counterparty.tenant_alice_cp",
+            "description": "Per-tenant collection point for rent payments",
+            "metadata": {
+                "tenant_id": "TEN-1001",
+                "property_id": "PROP-9",
+                "unit": "9B"
+            }
+        }
+    ],
+
+    "expected_payments": [
+        {
+            "ref": "ep_march_rent",
+            "description": "Expected March 2026 rent from Alice — Unit 9B",
+            "reconciliation_rule_variables": [
+                {
+                    "internal_account_id": "$ref:internal_account.collections_account",
+                    "direction": "credit",
+                    "amount_lower_bound": 250000,
+                    "amount_upper_bound": 250000,
+                    "type": "ach"
+                }
+            ],
+            "metadata": {
+                "tenant_id": "TEN-1001",
+                "billing_month": "2026-03",
+                "lease_id": "LEASE-4420"
+            }
+        }
+    ],
+
+    "incoming_payment_details": [
+        {
+            "ref": "ipd_march_rent",
+            "type": "ach",
+            "direction": "credit",
+            "amount": 250000,
+            "internal_account_id": "$ref:internal_account.collections_account",
+            "virtual_account_id": "$ref:virtual_account.va_tenant_alice",
+            "description": "Alice Tenant — March 2026 rent payment"
+        }
+    ]
+}
