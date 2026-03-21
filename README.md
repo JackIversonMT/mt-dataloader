@@ -10,11 +10,12 @@ Upload a JSON **DataLoaderConfig** in the browser: the app validates it, shows e
 
 ```bash
 cd mt-dataloader
-python3 -m venv .venv
+make setup                         # creates .venv, installs deps
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+make run                           # starts uvicorn with auto-reload
 ```
+
+Or manually: `python3 -m venv .venv && pip install -r requirements.txt && uvicorn main:app --reload`
 
 Open **http://127.0.0.1:8000**. Enter your **API key** and **org ID** on the setup screen, upload JSON (or paste), then **Validate → Preview → Execute**. No `.env` file is required.
 
@@ -54,29 +55,54 @@ See **`prompts/`** — start with **`prompts/README.md`** (what each file is for
 
 ## Webhooks (optional)
 
-Receive real-time MT webhook events correlated to dataloader runs. Requires a public URL — the app runs locally, so you need a tunnel.
+Receive real-time MT webhook events correlated to dataloader runs.
 
-### 1. Start ngrok
+The dataloader runs on `localhost:8000`, but Modern Treasury needs to reach it over the internet to deliver webhooks. **[ngrok](https://ngrok.com)** creates a temporary public URL that tunnels traffic to your local machine — MT sends a webhook to the public URL, ngrok forwards it to `localhost:8000`, and the dataloader receives it.
+
+### 1. Install ngrok (one-time)
+
+```bash
+brew install ngrok                          # macOS
+# or: https://ngrok.com/download            # other platforms
+```
+
+Create a **free account** at [ngrok.com](https://ngrok.com/signup), then authenticate (your auth token is on the ngrok dashboard):
+
+```bash
+ngrok config add-authtoken <your-token>
+```
+
+### 2. Start the tunnel
+
+With the dataloader already running (`uvicorn main:app --reload`), open a **second terminal**:
 
 ```bash
 ngrok http 8000
 ```
 
-Copy the `https://` forwarding URL (e.g. `https://ab12-34-56.ngrok-free.app`).
+ngrok prints a forwarding URL — something like:
 
-### 2. Create a webhook endpoint in Modern Treasury
+```
+Forwarding  https://ab12-34-56.ngrok-free.app -> http://localhost:8000
+```
+
+That `https://...ngrok-free.app` URL is your tunnel. It changes every time you restart ngrok (free plan). Paid plans support stable subdomains.
+
+> **Shortcut:** Open **http://127.0.0.1:8000/listen** — the dataloader auto-detects ngrok and displays the full webhook URL for you.
+
+### 3. Create a webhook endpoint in Modern Treasury
 
 Go to **MT Dashboard → Developers → Webhooks → Add Endpoint**:
 
 | Field | Value |
 |-------|-------|
-| **Webhook URL** | `https://<your-ngrok-subdomain>.ngrok-free.app/webhooks/mt` |
+| **Webhook URL** | `https://<your-ngrok-url>/webhooks/mt` (copy from the `/listen` page or ngrok terminal) |
 | **Basic Authentication** | Disabled |
 | **Events to send** | "Receive all events" (recommended) or select specific types |
 
-Click **Save**. MT will display a **signing secret** — copy it if you want signature verification (optional for sandbox).
+Click **Save**. MT displays a **signing secret** — copy it if you want signature verification (step 4).
 
-### 3. Configure signature verification (optional)
+### 4. Configure signature verification (optional)
 
 Add the signing secret to `.env`:
 
@@ -84,13 +110,25 @@ Add the signing secret to `.env`:
 DATALOADER_WEBHOOK_SECRET=whsec_...
 ```
 
-Or leave it blank / unset to skip verification. Without it the receiver accepts all payloads — fine for sandbox demos.
+Without it the receiver accepts all payloads — fine for sandbox demos. With it, the receiver validates the HMAC-SHA256 signature on every request and rejects tampered payloads.
 
-### 4. Use the listener
+### 5. Verify it works
 
-Open **http://127.0.0.1:8000/listen** — the page auto-detects your ngrok tunnel and shows the full webhook URL. Incoming events stream live. Use the **Send Test** button to verify the pipeline works before running a real config.
+Open **http://127.0.0.1:8000/listen** and click **Send Test** — a synthetic event should appear in the live feed. Then run a config and watch real MT events stream in on both the listener page and the run detail page (**Runs → Details → Webhooks** tab).
 
-After executing a config, go to **Runs → Details** for that run to see webhooks correlated to the resources it created.
+### Quick reference
+
+```bash
+# Terminal 1 — start the app
+make run
+
+# Terminal 2 — start the tunnel
+make tunnel
+```
+
+Then open **http://127.0.0.1:8000/listen** to see the tunnel URL and webhook feed.
+
+Run `make help` to see all available commands.
 
 ### Staged resources (live demo mode)
 
@@ -149,7 +187,8 @@ PY
 ## Layout
 
 ```
-main.py, models.py, engine.py, handlers.py, baseline.py
+main.py, models.py, engine.py, handlers.py, baseline.py, webhooks.py
+Makefile       setup, run, tunnel, validate shortcuts
 templates/     HTMX + Jinja2 UI
 static/        CSS
 examples/      marketplace_demo.json, psp_minimal.json, staged_demo.json
