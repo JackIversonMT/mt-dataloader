@@ -15,7 +15,9 @@ etc.
 | **No** | `connection`, `incoming_payment_detail`, `return`, `category_membership`, `nested_category` |
 
 Counterparty inline accounts (`accounts[]`) have their own metadata field
-separate from the counterparty-level metadata.
+separate from the counterparty-level metadata. Inline accounts **do not** have a
+`name` field — use `party_name` (and optional `metadata.account_label` or
+similar) for display text; the **counterparty** row has `name`.
 
 ---
 

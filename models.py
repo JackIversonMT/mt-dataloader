@@ -205,7 +205,14 @@ class AddressConfig(BaseModel):
 
     address_types: list[
         Literal["business", "mailing", "other", "po_box", "residential"]
-    ] = Field(default_factory=lambda: ["business"])
+    ] = Field(
+        default_factory=lambda: ["business"],
+        description=(
+            "Each entry must be one of: business, mailing, other, po_box, residential. "
+            "Do not use 'registered' or 'headquarters' — use business for a company's "
+            "registered office / HQ, residential for an individual's home."
+        ),
+    )
     line1: str
     line2: str | None = None
     locality: str
@@ -369,7 +376,8 @@ class LedgerConfig(MetadataMixin, _BaseResourceConfig):
 class CounterpartyAccountConfig(BaseModel):
     """Inline external account created with the counterparty.
 
-    Separate from ``ExternalAccountConfig`` because the SDK shape differs:
+    There is no ``name`` field on this object (use ``party_name`` or a label in
+    ``metadata``). Separate from ``ExternalAccountConfig`` because the SDK shape differs:
     no ``counterparty_id`` (implicit), distinct TypedDict for account/routing
     details.
 

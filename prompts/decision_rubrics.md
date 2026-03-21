@@ -58,6 +58,23 @@ or equivalent.
 `legal_structure` values: `corporation`, `llc`, `non_profit`, `partnership`,
 `sole_proprietorship`, `trust`.
 
+### Addresses and `address_types` (strict enum)
+
+Each `addresses[]` object **must** use only these `address_types` values (exact
+strings — no synonyms):
+
+| Allowed value   | Typical use |
+|-----------------|-------------|
+| `business`      | Company registered office, HQ, or place of business |
+| `mailing`       | Mailing / correspondence address |
+| `residential`   | Individual home address |
+| `po_box`        | P.O. box |
+| `other`         | Fallback when none of the above fit |
+
+**Common LLM mistake:** using `"registered"` or `"headquarters"`. Those are
+**invalid** in this config — use **`business`** for a business’s registered
+or principal address.
+
 ---
 
 ## Counterparties
@@ -76,6 +93,14 @@ inline with the counterparty and auto-registered as child refs:
 
 - `$ref:counterparty.<key>.account[0]` — first account
 - `$ref:counterparty.<key>.account[1]` — second account (if present)
+
+**Allowed fields** on each `accounts[]` object include: `account_type`,
+`party_name`, `party_type`, `party_address`, `account_details`, `routing_details`,
+`metadata`, plus sandbox-only `sandbox_behavior` and `sandbox_return_code`.
+
+**Not allowed:** `name` on the inline account (schema uses `extra="forbid"`).
+The counterparty itself has `name`; for an account-level label use `party_name`
+or a string in `metadata` (e.g. `account_label`).
 
 ### Sandbox behavior (critical for demos)
 

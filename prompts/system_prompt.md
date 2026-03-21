@@ -182,6 +182,15 @@ Paste from repo (trim only if size-constrained):
 15. **Same-wallet debits** — Sequence POs that debit the same IA (e.g. fee
     after settle) using `depends_on` when needed.
 
+16. **Legal entity `addresses[].address_types`** — Only these literals (exactly):
+    `business`, `mailing`, `other`, `po_box`, `residential`. Use **`business`**
+    for a company’s registered / principal office. **Never** `"registered"` or
+    `"headquarters"` — they are invalid in this schema.
+
+17. **Counterparty `accounts[]`** — No `name` field on inline accounts. Use
+    `party_name` or `metadata` (e.g. `account_label`) for labels. The parent
+    counterparty has `name`.
+
 ---
 
 ## Validation loop
@@ -211,5 +220,8 @@ Common fixes:
 - `missing` on `receiving_account_id` → add receiving account ref for credit POs
 - `missing` on `reconciliation_rule_variables` → add EP rule variables
 - `ref` / `value_error` → `ref` must be a simple key, not dotted or `$ref:`-prefixed
-- `extra_forbidden` → typo or unknown field (check schema)
+- `extra_forbidden` → typo or unknown field (check schema); **remove `name` from
+  `counterparties[].accounts[]`**, use `party_name` / `metadata`
+- `address_types` enum errors → replace `registered` / `headquarters` with `business`
+  (or `residential` for individuals)
 - `string_type` in metadata → string values only
