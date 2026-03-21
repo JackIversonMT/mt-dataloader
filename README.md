@@ -48,7 +48,55 @@ Resources reference each other with **`$ref:<resource_type>.<ref>`** (e.g. `$ref
 
 After creating a legal entity, the engine **polls** until MT reports `active` (or timeout) before continuing, so dependent internal accounts are less likely to race pending compliance.
 
-See **`prompts/`** — start with **`prompts/README.md`** (what each file is for) and **`prompts/system_prompt.md`** (output format + paste order). Use the two files under **`examples/`** as structural templates for PSP shapes.
+See **`prompts/`** — start with **`prompts/README.md`** (what each file is for) and **`prompts/system_prompt.md`** (output format + paste order). Use the files under **`examples/`** as structural templates for PSP shapes.
+
+---
+
+## Webhooks (optional)
+
+Receive real-time MT webhook events correlated to dataloader runs. Requires a public URL — the app runs locally, so you need a tunnel.
+
+### 1. Start ngrok
+
+```bash
+ngrok http 8000
+```
+
+Copy the `https://` forwarding URL (e.g. `https://ab12-34-56.ngrok-free.app`).
+
+### 2. Create a webhook endpoint in Modern Treasury
+
+Go to **MT Dashboard → Developers → Webhooks → Add Endpoint**:
+
+| Field | Value |
+|-------|-------|
+| **Webhook URL** | `https://<your-ngrok-subdomain>.ngrok-free.app/webhooks/mt` |
+| **Basic Authentication** | Disabled |
+| **Events to send** | "Receive all events" (recommended) or select specific types |
+
+Click **Save**. MT will display a **signing secret** — copy it if you want signature verification (optional for sandbox).
+
+### 3. Configure signature verification (optional)
+
+Add the signing secret to `.env`:
+
+```bash
+DATALOADER_WEBHOOK_SECRET=whsec_...
+```
+
+Or leave it blank / unset to skip verification. Without it the receiver accepts all payloads — fine for sandbox demos.
+
+### 4. Use the listener
+
+Open **http://127.0.0.1:8000/listen** — the page auto-detects your ngrok tunnel and shows the full webhook URL. Incoming events stream live. Use the **Send Test** button to verify the pipeline works before running a real config.
+
+After executing a config, go to **Runs → Details** for that run to see webhooks correlated to the resources it created.
+
+### Staged resources (live demo mode)
+
+Four resource types support `staged: true`: **payment orders**, **incoming payment details**, **expected payments**, and **ledger transactions**. Staged resources are resolved (refs replaced with real IDs) but **not created** during execution. They appear as "Fire" buttons on the run detail page so you can trigger them one-by-one during a live demo while webhook events stream in.
+
+See `examples/staged_demo.json` for a working example and `prompts/decision_rubrics.md` (Staged Resources) for dependency rules.
 
 ---
 
@@ -58,6 +106,7 @@ See **`prompts/`** — start with **`prompts/README.md`** (what each file is for
 |------|----------------|
 | `examples/marketplace_demo.json` | Full PSP marketplace: `modern_treasury_bank` + `example1`, legal entities, counterparties, internal accounts (`*_wallet` refs, **Payment Account** MT names), sandbox **IPD**, **book** fee + settle + **ACH** payout, **ACH debit** NSF demo (`sandbox_behavior`). No ledger / EP / VA. |
 | `examples/psp_minimal.json` | Smallest useful **book** transfer between two internal accounts. |
+| `examples/staged_demo.json` | Marketplace with `staged: true` on IPD + 3 POs. Infrastructure creates normally; staged items get "Fire" buttons. Deposit → fee → settle → payout chain. |
 
 Validate examples locally:
 
@@ -67,7 +116,7 @@ python - <<'PY'
 import json
 from models import DataLoaderConfig
 from engine import dry_run
-for p in ("examples/marketplace_demo.json", "examples/psp_minimal.json"):
+for p in ("examples/marketplace_demo.json", "examples/psp_minimal.json", "examples/staged_demo.json"):
     with open(p) as f:
         dry_run(DataLoaderConfig(**json.load(f)))
     print(p, "OK")
@@ -80,8 +129,9 @@ PY
 
 1. **Validate** — Credentials check, optional discovery, parse JSON, build DAG, dry run.
 2. **Preview** — Batches, dependencies, metadata, cleanup hints.
-3. **Execute** — Topological order, SSE updates, idempotency keys on creates.
-4. **Runs** — Manifests, cleanup (delete/archive what the API allows).
+3. **Execute** — Topological order, SSE updates, idempotency keys on creates. Staged resources are resolved but held back.
+4. **Run detail** — Config viewer, resource list, staged "Fire" buttons, live + historical webhooks (four tabs).
+5. **Runs** — Manifests, cleanup (delete/archive what the API allows).
 
 ---
 
@@ -102,7 +152,7 @@ PY
 main.py, models.py, engine.py, handlers.py, baseline.py
 templates/     HTMX + Jinja2 UI
 static/        CSS
-examples/      marketplace_demo.json, psp_minimal.json
+examples/      marketplace_demo.json, psp_minimal.json, staged_demo.json
 prompts/       LLM kit + system_prompt.md
 baseline.yaml  discovery fallback
 runs/, logs/   runtime (gitignored)
@@ -119,6 +169,7 @@ runs/, logs/   runtime (gitignored)
 | `handlers.py` | MT SDK calls, polling |
 | `baseline.py` | Org discovery + YAML fallback |
 | `main.py` | FastAPI, SSE, cleanup |
+| `webhooks.py` | Webhook receiver, run detail, staged fire, listener |
 
 ```bash
 source .venv/bin/activate
@@ -129,6 +180,6 @@ python test_step6_smoke.py
 
 ## Scope
 
-**In:** Sandbox resource creation from JSON, `$ref` DAG, SSE UI, run manifests + idempotency, metadata passthrough.
+**In:** Sandbox resource creation from JSON, `$ref` DAG, SSE UI, run manifests + idempotency, metadata passthrough, webhook receiver + correlation, staged resources with live-fire UI.
 
-**Out:** Embedded LLM, production attach-to-arbitrary-org mode, webhooks, full CLI.
+**Out:** Embedded LLM, production attach-to-arbitrary-org mode, full CLI.
