@@ -2,8 +2,6 @@
 
 Upload a JSON **DataLoaderConfig** in the browser: the app validates it, shows execution order (DAG), and creates resources in Modern Treasury’s **sandbox** via the Python SDK, with live progress (SSE).
 
-Designed for **PSP / marketplace-style demos** (internal accounts as wallets, book + ACH). An **LLM prompt kit** lives in `prompts/` for generating configs outside the app. Example JSON: `examples/marketplace_demo.json`, `examples/psp_minimal.json`.
-
 ---
 
 ## Quick start
