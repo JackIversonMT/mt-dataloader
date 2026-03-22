@@ -15,7 +15,7 @@ remaining files as **Knowledge files** that the app retrieves on demand:
 
 | Instructions field | Knowledge files (upload all) |
 |---|---|
-| `chatgpt_app_instructions.md` | `decision_rubrics.md`, `naming_conventions.md`, `ordering_rules.md`, `metadata_patterns.md`, `generation_profiles.md`, JSON schema from `GET /api/schema`, `examples/*.json` |
+| `chatgpt_app_instructions.md` | `decision_rubrics.md`, `naming_conventions.md`, `ordering_rules.md`, `metadata_patterns.md`, `generation_profiles.md`, `validation_fixes.md`, JSON schema from `GET /api/schema`, `examples/*.json` |
 
 The instructions contain behavioral guidance, all 17 generation rules, output
 format, connection capabilities, and the validation loop — everything the LLM
@@ -42,6 +42,7 @@ the full context window.
 | **`ordering_rules.md`** | DAG behavior, when to add `depends_on`, IPD/PO wording, staged resource DAG constraints. |
 | **`naming_conventions.md`** | `ref` keys and `$ref:` patterns. |
 | **`metadata_patterns.md`** | Suggested metadata keys by vertical; string values only. |
+| **`validation_fixes.md`** | Common validation error patterns and fixes — referenced from instructions' validation loop. |
 
 **Ground truth for shape:** `GET /api/schema` + `POST /api/validate-json` + the
 files under `examples/` (including `staged_demo.json`).

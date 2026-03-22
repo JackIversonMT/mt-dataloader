@@ -1,0 +1,78 @@
+# Validation Fixes: Common Error Patterns
+
+When `POST /api/validate-json` returns errors, use this guide to fix them.
+Each error has a `path`, `type`, and `message`.
+
+---
+
+## Error types and fixes
+
+### `missing` — Required field not provided
+
+| `path` contains | Fix |
+|----------------|-----|
+| `receiving_account_id` | Add `receiving_account_id` ref for credit POs (`direction: credit` requires it) |
+| `reconciliation_rule_variables` | Add EP rule variables: `internal_account_id`, `direction`, `amount_lower_bound`, `amount_upper_bound`, `type` |
+| `legal_entity_id` | Every internal account must reference a legal entity |
+
+### `ref` / `value_error` — Invalid ref format
+
+`ref` must be a simple `snake_case` key — no dots, no `$ref:` prefix. The
+engine auto-prefixes the resource type (e.g. ref `acme_corp` becomes
+`legal_entity.acme_corp`).
+
+### `extra_forbidden` — Unknown field
+
+Check the schema for typos or unknown fields. **Most common:** remove `name`
+from `counterparties[].accounts[]` — the schema uses `extra="forbid"` on
+inline accounts. Use `party_name` or `metadata` for labels; the parent
+counterparty has `name`.
+
+### `address_types` / `identifications` / `documents` on legal entities
+
+**Remove these fields entirely.** The dataloader always overwrites them with
+compliant mock data. For a business: only `ref`, `legal_entity_type`,
+`business_name`. For an individual: only `ref`, `legal_entity_type`,
+`first_name`, `last_name`.
+
+### `string_type` in metadata
+
+Metadata values must be strings. Use `"250000"` not `250000`.
+
+### `staged_dependency`
+
+A non-staged resource depends (via `$ref:` or `depends_on`) on a staged
+resource or its child ref. Fix: restructure so non-staged resources only
+reference non-staged ones, or mark the dependent resource as `staged: true`.
+
+### `staged_data_ref`
+
+A staged resource has a data-field `$ref:` pointing at another staged
+resource. Fix: remove the data-field ref (the ID won't exist yet) and use
+`depends_on` for ordering between staged items instead.
+
+### `unresolvable_ref`
+
+A `$ref:` string points to a resource that doesn't exist in the config.
+Check spelling, ensure the target resource is defined, and verify the ref
+format: `$ref:<resource_type>.<ref_key>` (e.g. `$ref:internal_account.main`).
+
+For child refs, use the correct selector:
+- `$ref:counterparty.<key>.account[0]` (0-indexed)
+- `$ref:internal_account.<key>.ledger_account`
+- `$ref:payment_order.<key>.ledger_transaction`
+
+### `cycle_error`
+
+Circular dependency in the DAG. Two or more resources depend on each other.
+Break the cycle by removing one `depends_on` or `$ref:` edge.
+
+---
+
+## Repair workflow
+
+1. Read each error's `path` to locate the resource and field.
+2. Apply the fix based on `type` (see above).
+3. Return a **full** replaced JSON document — do not return a diff or partial.
+4. If multiple errors, fix all of them in one pass.
+5. Re-validate until `valid: true`.
