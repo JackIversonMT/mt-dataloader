@@ -322,6 +322,110 @@ reference it directly.
 
 Ledger transactions can be archived during cleanup but not deleted.
 
+### `ledger_entries[]` payload shape
+
+Each entry in `ledger_entries` has exactly three fields: `amount` (cents),
+`direction` (`"credit"` or `"debit"`), and `ledger_account_id` (`$ref:` to a
+ledger account). The sum of all debit amounts must equal the sum of all credit
+amounts (balanced double-entry).
+
+**Standalone ledger transaction (simple 2-leg):**
+
+```json
+{
+    "ref": "lt_seed_alice_wallet",
+    "description": "Initial USD funding for Alice wallet",
+    "ledger_entries": [
+        {
+            "amount": 100000,
+            "direction": "debit",
+            "ledger_account_id": "$ref:ledger_account.platform_cash_usd"
+        },
+        {
+            "amount": 100000,
+            "direction": "credit",
+            "ledger_account_id": "$ref:ledger_account.alice_usd_wallet"
+        }
+    ],
+    "metadata": {
+        "journal_entry_id": "JE-001",
+        "source_system": "platform"
+    }
+}
+```
+
+**Standalone ledger transaction (4-leg reallocation):**
+
+```json
+{
+    "ref": "lt_alice_usd_to_usdg",
+    "description": "USD to USDG reallocation for Alice",
+    "ledger_entries": [
+        {
+            "amount": 20000,
+            "direction": "credit",
+            "ledger_account_id": "$ref:ledger_account.platform_cash_usd"
+        },
+        {
+            "amount": 20000,
+            "direction": "debit",
+            "ledger_account_id": "$ref:ledger_account.platform_usdg_reserve"
+        },
+        {
+            "amount": 20000,
+            "direction": "debit",
+            "ledger_account_id": "$ref:ledger_account.alice_usd_wallet"
+        },
+        {
+            "amount": 20000,
+            "direction": "credit",
+            "ledger_account_id": "$ref:ledger_account.alice_usdg_wallet"
+        }
+    ],
+    "depends_on": ["$ref:incoming_payment_detail.ipd_alice_funding"]
+}
+```
+
+**Inline ledger transaction on a payment order:**
+
+```json
+{
+    "ref": "po_platform_fee",
+    "type": "book",
+    "direction": "credit",
+    "amount": 500,
+    "originating_account_id": "$ref:internal_account.buyer_wallet",
+    "receiving_account_id": "$ref:internal_account.platform_revenue",
+    "ledger_transaction": {
+        "ledger_entries": [
+            {
+                "amount": 500,
+                "direction": "debit",
+                "ledger_account_id": "$ref:ledger_account.buyer_wallet_liability"
+            },
+            {
+                "amount": 500,
+                "direction": "credit",
+                "ledger_account_id": "$ref:ledger_account.revenue"
+            }
+        ],
+        "description": "Platform fee journal entry"
+    }
+}
+```
+
+**Rules:**
+- Minimum one entry, but practically always at least one debit + one credit.
+- Total debit amounts must equal total credit amounts.
+- `amount` is in cents (same as payment orders).
+- `ledger_account_id` uses `$ref:ledger_account.<ref>` syntax.
+- Optional fields on both standalone and inline: `description`,
+  `effective_at`, `effective_date`, `external_id`, `status`
+  (`"archived"`, `"pending"`, or `"posted"`).
+- Standalone ledger transactions also support `ledgerable_type` and
+  `ledgerable_id` for linking to a parent resource, and `metadata`.
+- Inline ledger transactions on POs support `metadata`.
+
 ### Staged ledger transactions
 
 `staged: true` on a standalone ledger transaction defers its creation.

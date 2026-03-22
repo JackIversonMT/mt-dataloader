@@ -132,7 +132,8 @@ Consult uploaded `validation_fixes.md` for common fix patterns.
 
 Consult the uploaded files for reference: schema (field names, enums, required
 keys), `decision_rubrics.md` (which resource for which intent, connection
-capabilities), `naming_conventions.md` (ref patterns), `ordering_rules.md`
-(DAG / depends_on), `metadata_patterns.md` (vertical metadata keys),
-`generation_profiles.md` (scope), `validation_fixes.md` (common errors),
-and `examples/*.json`.
+capabilities, `ledger_entries[]` payload examples), `naming_conventions.md`
+(ref patterns), `ordering_rules.md` (DAG / depends_on),
+`metadata_patterns.md` (vertical metadata keys), `generation_profiles.md`
+(scope), `validation_fixes.md` (common errors), and `examples/*.json`
+(including `tradeify.json` for ledger transaction patterns).

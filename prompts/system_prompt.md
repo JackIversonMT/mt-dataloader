@@ -128,6 +128,7 @@ Paste from repo (trim only if size-constrained):
 | `examples/marketplace_demo.json` | **Primary.** PSP marketplace: connection `modern_treasury_bank` + `example1`, minimal LEs (auto-mock compliance), CPs, IAs (`*_wallet` refs, **Payment Account** display names), IPD buyer **push**, book fee + settle + ACH payout, ACH **debit** NSF demo. No EP, no VA, no ledger. |
 | `examples/psp_minimal.json` | Smallest PSP slice: two IAs + one `book` transfer (no counterparties, no LEs). |
 | `examples/staged_demo.json` | **Staged demo.** Marketplace with `staged: true` on IPD + 3 POs. Non-staged resources (LEs, CPs, IAs) create normally; staged items appear as "Fire" buttons in the run-detail UI. Shows the IPD-deposit → book-fee → book-settle → ACH-payout chain. |
+| `examples/tradeify.json` | **Ledger-heavy PSP.** Brokerage funding: 10 users, ledger with chart-of-accounts (asset + liability accounts, USDG reserve), standalone `ledger_transactions` (2-leg seed, 4-leg USD→USDG reallocation, payout journal entries), RTP POs to counterparty brokerage accounts. Shows `ledger_entries[]` payload shape at scale. |
 
 <PASTE_EXAMPLES_HERE>
 
