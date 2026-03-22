@@ -24,17 +24,23 @@
         save: function() {
             var k = document.querySelector('[name="api_key"]');
             var o = document.querySelector('[name="org_id"]');
+            var n = document.querySelector('[name="org_name"]');
             if (k && k.value) sessionStorage.setItem("mt_api_key", k.value);
             if (o && o.value) sessionStorage.setItem("mt_org_id", o.value);
+            if (n && n.value) sessionStorage.setItem("mt_org_name", n.value);
         },
         restore: function() {
             var key = sessionStorage.getItem("mt_api_key");
             var org = sessionStorage.getItem("mt_org_id");
+            var name = sessionStorage.getItem("mt_org_name");
             document.querySelectorAll('[name="api_key"]').forEach(function(el) {
                 if (!el.value && key) el.value = key;
             });
             document.querySelectorAll('[name="org_id"]').forEach(function(el) {
                 if (!el.value && org) el.value = org;
+            });
+            document.querySelectorAll('[name="org_name"]').forEach(function(el) {
+                if (!el.value && name) el.value = name;
             });
         }
     };
@@ -50,6 +56,7 @@
                 <img src="/static/mt-symbol.svg" alt="MT" width="20" height="20">
                 <span>Dataloader</span>
             </a>
+            <div class="sidebar-org" id="sidebar-org"></div>
             <nav class="sidebar-nav">
                 <a href="/setup" class="sidebar-link {% block nav_setup %}{% endblock %}">Setup</a>
                 <a href="/runs" class="sidebar-link {% block nav_runs %}{% endblock %}">Runs</a>
@@ -65,11 +72,18 @@
     </div>
     <script>
     (function() {
-        var el = document.getElementById("cred-status");
-        var org = sessionStorage.getItem("mt_org_id");
-        if (org) {
-            el.textContent = org;
-            el.title = "Org ID stored for this session";
+        var orgEl = document.getElementById("sidebar-org");
+        var credEl = document.getElementById("cred-status");
+        var orgName = sessionStorage.getItem("mt_org_name");
+        var orgId = sessionStorage.getItem("mt_org_id");
+        if (orgName || orgId) {
+            orgEl.innerHTML =
+                '<div class="org-name">' + (orgName || orgId) + '</div>' +
+                (orgName && orgId ? '<div class="org-id">' + orgId + '</div>' : '');
+        }
+        if (orgId) {
+            credEl.textContent = orgId;
+            credEl.title = "Org ID stored for this session";
         }
     })();
     </script>

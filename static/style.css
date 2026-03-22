@@ -87,6 +87,31 @@ body {
     text-decoration: none;
 }
 .sidebar-logo img { width: 20px; height: 20px; }
+.sidebar-org {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 16px 16px;
+}
+.sidebar-org:empty { display: none; }
+.org-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #F6F6F2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 188px;
+}
+.org-id {
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    color: #AAA9A4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 188px;
+}
 .sidebar-nav {
     display: flex;
     flex-direction: column;
