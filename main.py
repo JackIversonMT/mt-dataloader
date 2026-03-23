@@ -318,6 +318,128 @@ def _build_preview(
     return items
 
 
+def _build_flow_grouped_preview(session: _SessionState) -> list[dict]:
+    """Build flow-grouped preview data for the flow-aware preview page."""
+    orig_flows = session.original_funds_flows or []
+    flow_irs = session.flow_ir or []
+    all_items = session.preview_items or []
+
+    claimed_refs: set[str] = set()
+    groups: list[dict] = []
+
+    for i, ir in enumerate(flow_irs):
+        fc = orig_flows[i] if i < len(orig_flows) else None
+
+        flow_step_refs = {f"{s.resource_type}.{s.step_id}" for s in ir.steps}
+        for s in ir.steps:
+            for lg in s.ledger_groups:
+                flow_step_refs.add(f"ledger_transaction.{lg.group_id}")
+
+        flow_items = [
+            item for item in all_items
+            if item["typed_ref"] in flow_step_refs
+            or item.get("metadata", {}).get(ir.trace_key) == ir.trace_value
+        ]
+        claimed_refs.update(item["typed_ref"] for item in flow_items)
+
+        actors_data: list[dict] = []
+        if fc:
+            for alias, ref in fc.actors.items():
+                rt = ref.replace("$ref:", "").split(".")[0] if "$ref:" in ref else ""
+                resolved = _resolve_resource_display(ref, session.config)
+                actors_data.append({
+                    "alias": alias,
+                    "ref": ref,
+                    "resource_type": rt,
+                    "display_name": actor_display_name(ref),
+                    "resolved_name": resolved,
+                    "is_instance": "{instance}" in ref,
+                })
+
+        infra_refs: set[str] = set()
+        if fc and fc.instance_resources:
+            for section, items in fc.instance_resources.items():
+                singular = section.rstrip("s")
+                if section.endswith("ies"):
+                    singular = section[:-3] + "y"
+                for tmpl in items:
+                    tmpl_ref = tmpl.get("ref", "")
+                    resolved_ref = tmpl_ref.replace("{instance}", ir.instance_id)
+                    typed = f"{singular}.{resolved_ref}"
+                    infra_refs.add(typed)
+
+        infra_items = [
+            item for item in all_items
+            if item["typed_ref"] in infra_refs and item["typed_ref"] not in claimed_refs
+        ]
+        claimed_refs.update(item["typed_ref"] for item in infra_items)
+
+        groups.append({
+            "flow_ref": ir.flow_ref,
+            "pattern_type": ir.pattern_type,
+            "trace_key": ir.trace_key,
+            "trace_value": ir.trace_value,
+            "step_count": len(ir.steps),
+            "status": compute_flow_status(ir),
+            "actors": actors_data,
+            "flow_items": flow_items,
+            "infra_items": infra_items,
+            "total_items": len(flow_items) + len(infra_items),
+            "flow_diagram_idx": i,
+        })
+
+    unclaimed = [item for item in all_items if item["typed_ref"] not in claimed_refs]
+    if unclaimed:
+        groups.insert(0, {
+            "flow_ref": "Infrastructure",
+            "pattern_type": "shared",
+            "trace_key": "",
+            "trace_value": "Shared resources",
+            "step_count": 0,
+            "status": "preview",
+            "actors": [],
+            "flow_items": [],
+            "infra_items": unclaimed,
+            "total_items": len(unclaimed),
+            "flow_diagram_idx": -1,
+        })
+
+    return groups
+
+
+def _resolve_resource_display(ref: str, config: DataLoaderConfig) -> str:
+    """Resolve a $ref to a human-readable display name from compiled config."""
+    if not ref.startswith("$ref:"):
+        return ref
+    cleaned = ref[5:]
+    parts = cleaned.split(".", 1)
+    if len(parts) < 2:
+        return cleaned
+    rtype, rref = parts[0], parts[1]
+
+    section_map = {
+        "internal_account": "internal_accounts",
+        "ledger_account": "ledger_accounts",
+        "counterparty": "counterparties",
+        "legal_entity": "legal_entities",
+        "connection": "connections",
+        "ledger": "ledgers",
+    }
+    section_name = section_map.get(rtype, rtype + "s")
+    section = getattr(config, section_name, None) or []
+    base_ref = rref.split(".")[0].split("[")[0]
+    for resource in section:
+        if getattr(resource, "ref", None) == base_ref:
+            name = (
+                getattr(resource, "name", None)
+                or getattr(resource, "business_name", None)
+                or getattr(resource, "nickname", None)
+                or base_ref
+            )
+            return name
+    return actor_display_name(ref)
+
+
 def _extract_sandbox_info(resource: Any) -> str | None:
     """Return a human-readable sandbox behavior label for counterparties."""
     accounts = getattr(resource, "accounts", None)
@@ -598,10 +720,9 @@ async def validate(
 
     had_funds_flows = bool(flow_irs)
     if had_funds_flows:
-        return RedirectResponse(
-            url=f"/flows?session_token={token}",
-            status_code=303,
-        )
+        resp = HTMLResponse(content="", status_code=200)
+        resp.headers["HX-Redirect"] = f"/flows?session_token={token}"
+        return resp
 
     return templates.TemplateResponse(
         request,
@@ -779,6 +900,11 @@ async def revalidate(
     )
 
     del _sessions[session_token]
+
+    if flow_irs_reval:
+        resp = HTMLResponse(content="", status_code=200)
+        resp.headers["HX-Redirect"] = f"/flows?session_token={new_token}"
+        return resp
 
     return templates.TemplateResponse(
         request,
@@ -1098,6 +1224,7 @@ async def flows_page(request: Request):
         for i, ir in enumerate(session.flow_ir):
             optional_groups: list[dict] = []
             amount_steps: list[dict] = []
+            actors_list: list[dict] = []
             if i < len(orig_flows):
                 fc = orig_flows[i]
                 for og in fc.optional_groups:
@@ -1114,6 +1241,15 @@ async def flows_page(request: Request):
                             "type": s.type,
                             "amount": s.amount,
                         })
+                for alias, ref in fc.actors.items():
+                    rt = ref.replace("$ref:", "").split(".")[0] if "$ref:" in ref else ""
+                    actors_list.append({
+                        "alias": alias,
+                        "ref": ref,
+                        "resource_type": rt,
+                        "display_name": actor_display_name(ref),
+                        "is_instance": "{instance}" in ref,
+                    })
 
             flow_summaries.append({
                 "index": i,
@@ -1126,6 +1262,7 @@ async def flows_page(request: Request):
                 "account_deltas": flow_account_deltas(ir),
                 "optional_groups": optional_groups,
                 "amount_steps": amount_steps,
+                "actors": actors_list,
                 "has_instance_resources": bool(
                     i < len(orig_flows) and orig_flows[i].instance_resources
                 ),
@@ -1278,11 +1415,34 @@ async def flows_view_page(request: Request, flow_idx: int):
 
 @app.get("/preview", include_in_schema=False)
 async def preview_page(request: Request):
-    """Preview page from session state (bidirectional toggle from Flows)."""
+    """Preview page — flow-grouped when funds_flows present, flat otherwise."""
     session_token = request.query_params.get("session_token", "")
     session = _sessions.get(session_token)
     if not session:
         return RedirectResponse(url="/setup")
+
+    total_resources = sum(len(b) for b in session.batches)
+    deletable_count = sum(1 for i in session.preview_items if i["deletable"])
+    non_deletable_count = sum(1 for i in session.preview_items if not i["deletable"])
+
+    if session.flow_ir:
+        flow_groups = _build_flow_grouped_preview(session)
+        return templates.TemplateResponse(
+            request,
+            "preview_flows_page.html",
+            {
+                "session_token": session_token,
+                "flow_groups": flow_groups,
+                "resource_count": total_resources,
+                "deletable_count": deletable_count,
+                "non_deletable_count": non_deletable_count,
+                "discovery": session.discovery,
+                "reconciliation": session.reconciliation,
+                "config_json_text": session.config_json_text,
+                "has_funds_flows": True,
+                "mermaid_diagrams": session.mermaid_diagrams or [],
+            },
+        )
 
     return templates.TemplateResponse(
         request,
@@ -1293,15 +1453,15 @@ async def preview_page(request: Request):
             "preview_items": session.preview_items,
             "preflight": session.preflight,
             "config_hash": config_hash(session.config),
-            "resource_count": sum(len(b) for b in session.batches),
-            "deletable_count": sum(1 for i in session.preview_items if i["deletable"]),
-            "non_deletable_count": sum(1 for i in session.preview_items if not i["deletable"]),
+            "resource_count": total_resources,
+            "deletable_count": deletable_count,
+            "non_deletable_count": non_deletable_count,
             "display_phases": DisplayPhase,
             "discovery": session.discovery,
             "reconciliation": session.reconciliation,
             "config_json_text": session.config_json_text,
             "discovered_by_type": _build_discovered_by_type(session.discovery),
-            "has_funds_flows": bool(session.flow_ir),
+            "has_funds_flows": False,
         },
     )
 

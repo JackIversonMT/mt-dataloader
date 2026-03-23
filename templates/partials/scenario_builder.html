@@ -16,12 +16,17 @@
         </div>
     </div>
 
+    {% if fs.actors %}
     <div class="scenario-section">
-        <div class="scenario-section-label">Seed Profiles</div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Businesses</label>
-                <select id="gen-biz-{{ flow_idx }}">
+        <div class="scenario-section-label">Actors</div>
+        <div class="actor-list">
+            {% for actor in fs.actors %}
+            <div class="actor-item {% if actor.is_instance %}actor-instance{% endif %}">
+                <code class="actor-alias">{{ actor.alias }}</code>
+                <span class="ledgerable-pill">{{ actor.resource_type }}</span>
+                <span class="actor-display-name">{{ actor.display_name }}</span>
+                {% if actor.is_instance %}
+                <select class="actor-dataset-select" data-actor="{{ actor.alias }}" id="gen-actor-ds-{{ flow_idx }}-{{ loop.index0 }}">
                     {% if seed_datasets %}
                     {% set current_tier = namespace(value='') %}
                     {% for ds in seed_datasets %}
@@ -40,31 +45,12 @@
                     <option value="standard" selected>Standard</option>
                     {% endif %}
                 </select>
+                {% endif %}
             </div>
-            <div class="form-group">
-                <label>Individuals</label>
-                <select id="gen-indiv-{{ flow_idx }}">
-                    {% if seed_datasets %}
-                    {% set current_tier = namespace(value='') %}
-                    {% for ds in seed_datasets %}
-                    {% if ds.tier != current_tier.value %}
-                    {% if current_tier.value %}</optgroup>{% endif %}
-                    {% if ds.tier == 'faker' %}<optgroup label="General">
-                    {% elif ds.tier == 'industry' %}<optgroup label="Industry Verticals">
-                    {% elif ds.tier == 'curated' %}<optgroup label="Pop Culture">
-                    {% endif %}
-                    {% set current_tier.value = ds.tier %}
-                    {% endif %}
-                    <option value="{{ ds.name }}"{% if ds.name == 'standard' %} selected{% endif %}>{{ ds.label }}</option>
-                    {% endfor %}
-                    {% if current_tier.value %}</optgroup>{% endif %}
-                    {% else %}
-                    <option value="standard" selected>Standard</option>
-                    {% endif %}
-                </select>
-            </div>
+            {% endfor %}
         </div>
     </div>
+    {% endif %}
 
     {% if fs.optional_groups %}
     <div class="scenario-section">
@@ -153,8 +139,6 @@
     function el(id) { return document.getElementById(id + '-' + idx); }
 
     function buildRecipe() {
-        var bizDs = el('gen-biz').value;
-        var indivDs = el('gen-indiv').value;
         var recipe = {
             version: "v1",
             flow_ref: flowRef,
@@ -166,8 +150,17 @@
             staged_count: parseInt(el('gen-staged').value),
             staged_selection: el('gen-staged-sel').value,
         };
-        if (bizDs !== 'standard') recipe.business_dataset = bizDs;
-        if (indivDs !== 'standard') recipe.individual_dataset = indivDs;
+        var selects = document.querySelectorAll('#scenario-builder-' + idx + ' .actor-dataset-select');
+        if (selects.length > 0) {
+            var first = selects[0].value;
+            if (first !== 'standard') recipe.business_dataset = first;
+            if (first !== 'standard') recipe.individual_dataset = first;
+            selects.forEach(function(s) {
+                if (s.value !== 'standard' && s.value !== first) {
+                    recipe.business_dataset = recipe.business_dataset || s.value;
+                }
+            });
+        }
         return recipe;
     }
 

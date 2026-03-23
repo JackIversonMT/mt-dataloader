@@ -1168,6 +1168,32 @@ a.doc-link:hover .sandbox-badge {
     margin-bottom: 24px;
 }
 
+.actor-list {
+    display: flex; flex-direction: column; gap: 4px;
+}
+.actor-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; padding: 5px 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.actor-instance {
+    border-left: 3px solid var(--primary);
+}
+.actor-alias {
+    font-size: 0.78rem; font-weight: 600;
+    min-width: 120px;
+}
+.actor-display-name {
+    color: var(--text-muted); font-size: 0.78rem;
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.actor-dataset-select {
+    padding: 2px 6px; font-size: 0.75rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); max-width: 150px;
+}
+
 .edge-case-list, .amount-step-list {
     display: flex; flex-direction: column; gap: 6px;
 }
@@ -1194,6 +1220,49 @@ a.doc-link:hover .sandbox-badge {
     border: 1px solid var(--border); border-radius: var(--radius);
     font-size: 0.9rem;
 }
+
+/* --- Preview flow groups --- */
+.preview-flows-container { max-width: 960px; margin: 0 auto; padding: 24px 32px; }
+.preview-flow-group {
+    margin-bottom: 24px; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+}
+.preview-flow-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+.preview-flow-title { display: flex; align-items: center; gap: 8px; }
+.preview-flow-trace {
+    padding: 6px 16px; background: var(--bg); font-size: 0.78rem;
+    border-bottom: 1px solid var(--border);
+}
+.preview-section-label {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted);
+    padding: 8px 16px 4px;
+}
+.preview-actors-section { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.preview-actors-grid { padding: 0 16px 4px; display: flex; flex-direction: column; gap: 3px; }
+.preview-actor-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; padding: 3px 8px;
+    border-radius: var(--radius);
+}
+.preview-actor-row.actor-instance { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.preview-actor-resolved {
+    color: var(--text-muted); font-size: 0.78rem;
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.preview-resource-section { border-bottom: 1px solid var(--border); }
+.preview-resource-section:last-child { border-bottom: none; }
+.preview-table-compact { width: 100%; font-size: 0.82rem; }
+.preview-table-compact th {
+    padding: 4px 16px; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border); text-align: left;
+}
+.preview-table-compact td { padding: 4px 16px; }
 
 /* --- Account deltas --- */
 .account-deltas {

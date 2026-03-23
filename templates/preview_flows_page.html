@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block nav_flows %}active{% endblock %}
+{% block title %}Preview — Grouped by Flow{% endblock %}
+
+{% block content %}
+<div class="preview-flows-container" style="padding-bottom: 72px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <h2>Preview</h2>
+        <a href="/flows?session_token={{ session_token }}" class="btn btn-outline btn-sm">
+            ← Back to Fund Flows
+        </a>
+    </div>
+
+    <p class="text-muted" style="font-size: 0.85rem; margin-top: -8px; margin-bottom: 16px;">
+        Review resources grouped by flow before execution
+    </p>
+
+    {% if discovery %}
+        {% include "partials/discovery_summary.html" %}
+    {% endif %}
+
+    {% if reconciliation %}
+        {% include "partials/reconciliation_panel.html" %}
+    {% endif %}
+
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="stat-value">{{ resource_count }}</span>
+            <span class="stat-label">resources</span>
+        </div>
+        <div class="stat">
+            <span class="stat-value">{{ flow_groups|length }}</span>
+            <span class="stat-label">groups</span>
+        </div>
+        <div class="stat stat-deletable">
+            <span class="stat-value">{{ deletable_count }}</span>
+            <span class="stat-label">deletable</span>
+        </div>
+        <div class="stat stat-persistent">
+            <span class="stat-value">{{ non_deletable_count }}</span>
+            <span class="stat-label">persistent</span>
+        </div>
+    </div>
+
+    {% for group in flow_groups %}
+    <div class="preview-flow-group">
+        <div class="preview-flow-header">
+            <div class="preview-flow-title">
+                <span class="flow-ref">{{ group.flow_ref }}</span>
+                {% if group.pattern_type != 'shared' %}
+                <span class="flow-pattern">{{ group.pattern_type }}</span>
+                <span class="flow-status-badge flow-status-{{ group.status }}">{{ group.status }}</span>
+                {% endif %}
+            </div>
+            <span class="text-muted" style="font-size: 0.82rem;">
+                {{ group.total_items }} resource{{ 's' if group.total_items != 1 else '' }}
+            </span>
+        </div>
+
+        {% if group.trace_value and group.trace_key %}
+        <div class="preview-flow-trace">
+            <code>{{ group.trace_key }}: {{ group.trace_value }}</code>
+        </div>
+        {% endif %}
+
+        {% if group.actors %}
+        <div class="preview-actors-section">
+            <div class="preview-section-label">Actors</div>
+            <div class="preview-actors-grid">
+                {% for actor in group.actors %}
+                <div class="preview-actor-row {% if actor.is_instance %}actor-instance{% endif %}">
+                    <code class="actor-alias">{{ actor.alias }}</code>
+                    <span class="ledgerable-pill">{{ actor.resource_type }}</span>
+                    <span class="preview-actor-resolved">{{ actor.resolved_name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if group.infra_items %}
+        <div class="preview-resource-section">
+            <div class="preview-section-label">Infrastructure ({{ group.infra_items|length }})</div>
+            <table class="preview-table preview-table-compact">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Ref</th>
+                        <th>Info</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in group.infra_items %}
+                <tr>
+                    <td><span class="type-badge type-{{ item.resource_type }}">{{ item.resource_type }}</span></td>
+                    <td><code>{{ item.typed_ref.split(".", 1)[1] if "." in item.typed_ref else item.typed_ref }}</code>
+                        {% if item.deletable %}
+                        <span class="cleanup-icon deletable" title="Deletable">&#x1f5d1;</span>
+                        {% else %}
+                        <span class="cleanup-icon persistent" title="Persistent">&#x1f512;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.metadata and item.metadata.get("_flow_optional_group") %}
+                        <span class="edge-case-badge">Edge: {{ item.metadata._flow_optional_group }}</span>
+                        {% elif item.has_metadata %}
+                        <span class="text-muted">{{ item.metadata|length }} key(s)</span>
+                        {% else %}&mdash;{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if group.flow_items %}
+        <div class="preview-resource-section">
+            <div class="preview-section-label">Flow Steps ({{ group.flow_items|length }})</div>
+            <table class="preview-table preview-table-compact">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Batch</th>
+                        <th>Type</th>
+                        <th>Ref</th>
+                        <th>Info</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in group.flow_items %}
+                <tr>
+                    <td><span class="batch-badge">B{{ item.batch }}</span></td>
+                    <td><span class="type-badge type-{{ item.resource_type }}">{{ item.resource_type }}</span></td>
+                    <td><code>{{ item.typed_ref.split(".", 1)[1] if "." in item.typed_ref else item.typed_ref }}</code>
+                        {% if item.deletable %}
+                        <span class="cleanup-icon deletable" title="Deletable">&#x1f5d1;</span>
+                        {% else %}
+                        <span class="cleanup-icon persistent" title="Persistent">&#x1f512;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.metadata and item.metadata.get("_flow_optional_group") %}
+                        <span class="edge-case-badge">Edge: {{ item.metadata._flow_optional_group }}</span>
+                        {% elif item.has_metadata %}
+                        <span class="text-muted">{{ item.metadata|length }} key(s)</span>
+                        {% else %}&mdash;{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if group.pattern_type != 'shared' and group.flow_diagram_idx is defined and group.flow_diagram_idx < mermaid_diagrams|length %}
+            {% set mermaid_id = "preview_" ~ group.flow_diagram_idx %}
+            {% set mermaid_diagram = mermaid_diagrams[group.flow_diagram_idx] %}
+            {% set mermaid_label = group.trace_value %}
+            {% include "partials/mermaid_accordion.html" %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <details class="json-editor-panel">
+        <summary>View / Edit JSON Config</summary>
+        <form id="revalidate-form"
+              hx-post="/api/revalidate"
+              hx-target="#content"
+              hx-swap="innerHTML"
+              hx-indicator="#revalidate-spinner"
+              hx-disabled-elt="button[type=submit]">
+            <input type="hidden" name="session_token" value="{{ session_token }}">
+            <input type="hidden" name="reconcile_overrides" id="reconcile-overrides" value="">
+            <textarea id="preview-json-editor" name="config_json"
+                      class="json-editor" rows="24"
+                      spellcheck="false">{{ config_json_text }}</textarea>
+            <div id="preview-json-status" class="json-parse-status"></div>
+            <div class="json-editor-actions">
+                <button type="submit" class="btn btn-secondary btn-sm">
+                    <span class="btn-text">Re-validate</span>
+                    <span id="revalidate-spinner" class="htmx-indicator spinner-sm"></span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" id="btn-format-json">Format</button>
+                <button type="button" class="btn btn-sm btn-outline" id="btn-copy-json">Copy</button>
+            </div>
+        </form>
+    </details>
+</div>
+
+<div class="pinned-bottom-bar">
+    <a href="/flows?session_token={{ session_token }}" class="btn btn-outline" style="margin-right: 8px;">
+        ← Back
+    </a>
+    <form class="execute-form" style="display: inline;"
+          hx-post="/api/execute"
+          hx-target="#content"
+          hx-swap="innerHTML"
+          hx-indicator="#execute-spinner"
+          hx-disabled-elt="button[type=submit]">
+        <input type="hidden" name="session_token" value="{{ session_token }}">
+        <button type="submit" class="btn btn-primary btn-execute">
+            <span class="btn-text">Execute ({{ resource_count }} resources)</span>
+            <span id="execute-spinner" class="htmx-indicator spinner"></span>
+        </button>
+    </form>
+</div>
+
+{% include "partials/mermaid_scripts.html" %}
+
+<script>
+(function() {
+    var editor = document.getElementById("preview-json-editor");
+    var status = document.getElementById("preview-json-status");
+    if (!editor) return;
+    var debounce;
+    editor.addEventListener("input", function() {
+        clearTimeout(debounce);
+        debounce = setTimeout(function() {
+            var val = editor.value.trim();
+            if (!val) { status.textContent = ""; status.className = "json-parse-status"; return; }
+            try { JSON.parse(val); status.textContent = "Valid JSON"; status.className = "json-parse-status valid"; }
+            catch(e) { status.textContent = e.message; status.className = "json-parse-status invalid"; }
+        }, 300);
+    });
+    document.getElementById("btn-format-json").addEventListener("click", function() {
+        try {
+            editor.value = JSON.stringify(JSON.parse(editor.value), null, 2);
+            status.textContent = "Formatted"; status.className = "json-parse-status valid";
+        } catch(e) { status.textContent = e.message; status.className = "json-parse-status invalid"; }
+    });
+    document.getElementById("btn-copy-json").addEventListener("click", function() {
+        navigator.clipboard.writeText(editor.value).then(function() {
+            var btn = document.getElementById("btn-copy-json");
+            btn.textContent = "Copied!";
+            setTimeout(function() { btn.textContent = "Copy"; }, 1500);
+        });
+    });
+})();
+</script>
+{% endblock %}
