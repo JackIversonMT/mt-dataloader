@@ -558,6 +558,13 @@ DSL section. This replaces manually building individual `payment_orders`,
 - The SE wants to visualize the money flow
 - The SE will scale the pattern ("generate 100 of these")
 - The demo involves lifecycle variants (returns, reversals)
+- The demo involves per-user infrastructure (use `instance_resources`)
+
+**Use `instance_resources` when:**
+- Each flow instance needs its own legal entity, counterparty, internal account, or ledger account
+- The SE wants to scale from 1 user to 100+ users with unique names and accounts
+- Use `{first_name}`, `{last_name}`, `{business_name}`, `{instance}` placeholders
+- Seed profiles are pulled from the selected dataset (standard, industry verticals, pop-culture)
 
 **Use raw resource arrays when:**
 - Single isolated resources (one PO, one LT)

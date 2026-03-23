@@ -96,7 +96,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 REF_PATTERN = re.compile(
-    r"^\$ref:[a-z_]+\.[a-zA-Z0-9_]+(\.[a-zA-Z0-9_\[\]]+)*$"
+    r"^\$ref:[a-z_]+\.[a-zA-Z0-9_{}\[\]]+(\.[a-zA-Z0-9_{}\[\]]+)*$"
 )
 
 RESOURCE_TYPES: frozenset[str] = frozenset(
@@ -1139,7 +1139,10 @@ class FundsFlowScaleConfig(BaseModel):
 
 
 _TRACE_FORMATTER = string.Formatter()
-_ALLOWED_TRACE_PLACEHOLDERS = frozenset({"ref", "instance"})
+_ALLOWED_TRACE_PLACEHOLDERS = frozenset({
+    "ref", "instance",
+    "first_name", "last_name", "business_name", "industry", "country",
+})
 
 
 class FundsFlowConfig(BaseModel):
@@ -1156,6 +1159,14 @@ class FundsFlowConfig(BaseModel):
     steps: list[FundsFlowStepConfig] = Field(..., min_length=1)
     optional_groups: list[OptionalGroupConfig] = Field(default_factory=list)
     scale: FundsFlowScaleConfig | None = None
+    instance_resources: dict[str, list[dict[str, Any]]] | None = Field(
+        default=None,
+        description=(
+            "Per-instance infrastructure templates keyed by resource section. "
+            "Each template dict is cloned per instance with {placeholder} "
+            "substitution from seed profiles."
+        ),
+    )
 
     @model_validator(mode="after")
     def _validate_flow(self) -> FundsFlowConfig:
@@ -1224,6 +1235,10 @@ class GenerationRecipeV1(BaseModel):
     flow_ref: str
     instances: int = Field(..., ge=1, le=5000)
     seed: int
+    seed_dataset: str = Field(
+        default="standard",
+        description="Seed dataset name for profile substitution",
+    )
     edge_case_frequency: float = Field(
         default=0.0, ge=0.0, le=1.0,
         description="Probability that each optional group activates per instance",

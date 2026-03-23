@@ -72,8 +72,9 @@ The `funds_flows` section in a config defines multi-step payment lifecycles decl
 
 The **scenario builder** on the Fund Flows page scales one pattern to N instances:
 
-- **GenerationRecipeV1** controls: `instances`, `seed` (deterministic RNG), `edge_case_frequency`, `amount_variance_pct`, `staged_count`, `staged_selection`, `payment_mix`
-- Seeded profile data from `seeds/seed_catalog.yaml` (business names, individuals) is cycled across instances for name variety
+- **GenerationRecipeV1** controls: `instances`, `seed` (deterministic RNG), `seed_dataset`, `edge_case_frequency`, `amount_variance_pct`, `staged_count`, `staged_selection`, `payment_mix`
+- **Seed datasets** (10 available): pure Faker ("standard"), 6 industry verticals (tech, government, payroll, manufacturing, property_management, construction), and 3 pop-culture (harry_potter, superheroes, seinfeld). Selectable from the scenario builder UI.
+- **`instance_resources`** on `FundsFlowConfig` defines per-instance infrastructure templates (LEs, CPs, IAs, LAs) that are cloned with `{first_name}`, `{last_name}`, `{business_name}`, `{instance}` substitution from seed profiles
 - Edge cases activate `optional_groups` probabilistically per the recipe
 - Compile-time preview shows resource counts and estimated API calls before execution
 
@@ -257,7 +258,7 @@ models.py            Pydantic config schemas (DataLoaderConfig, FundsFlowConfig,
 engine.py            Refs, DAG (graphlib), execute, run manifests
 handlers.py          MT SDK calls, polling, metadata stripping
 flow_compiler.py     Funds Flow DSL -> FlowIR -> DataLoaderConfig compiler, Mermaid rendering
-seed_loader.py       YAML seed catalog loader for generation
+seed_loader.py       Faker hybrid seed engine (standard, industry, pop-culture)
 baseline.py          Org discovery + YAML fallback
 webhooks.py          Webhook receiver, run detail, staged fire, listener
 
@@ -283,7 +284,7 @@ tests/               Pytest suite (262 tests)
 | `engine.py` | Refs, DAG (`graphlib`), execute, manifests |
 | `handlers.py` | MT SDK calls, polling, trace metadata stripping |
 | `flow_compiler.py` | `compile_flows()`, `emit_dataloader_config()`, `maybe_compile()`, `render_mermaid()`, generation pipeline |
-| `seed_loader.py` | Loads `seeds/seed_catalog.yaml` for profile cycling |
+| `seed_loader.py` | Faker hybrid seed engine: 10 datasets (standard/industry/pop-culture), `generate_profiles()`, `pick_profile()` |
 | `baseline.py` | Org discovery + YAML fallback |
 | `main.py` | FastAPI, SSE, Fund Flows UI routes, cleanup |
 | `webhooks.py` | Webhook receiver, run detail, staged fire, listener |

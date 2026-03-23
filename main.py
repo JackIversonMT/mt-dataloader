@@ -1124,6 +1124,9 @@ async def flows_page(request: Request):
                 "account_deltas": flow_account_deltas(ir),
             })
 
+    import seed_loader
+    seed_datasets = seed_loader.list_datasets()
+
     return templates.TemplateResponse(
         request,
         "flows.html",
@@ -1136,6 +1139,7 @@ async def flows_page(request: Request):
             "working_config_json": session.working_config_json or session.config_json_text,
             "generation_recipe": session.generation_recipe,
             "config_json_text": session.config_json_text,
+            "seed_datasets": seed_datasets,
         },
     )
 

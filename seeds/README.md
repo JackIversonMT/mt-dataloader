@@ -1,12 +1,28 @@
-# Seed Catalog — Profile Data for Generation
+# Seed Data — Faker Hybrid Engine
 
-This directory contains curated YAML profile data used to inject
-name/identity variety when scaling funds flows ("generate 100 of these").
+This directory contains curated YAML profile data and company-name
+templates. The `seed_loader.py` module uses a three-tier approach:
+
+## Tiers
+
+| Tier | Source | YAML needed | Examples |
+|------|--------|-------------|----------|
+| **Standard** | Pure Faker | None | Unlimited realistic US names/companies |
+| **Industry verticals** | Faker + `industry_templates.yaml` | Patterns only (~10/vertical) | tech, government, payroll, manufacturing, property_management, construction |
+| **Pop-culture** | Curated YAML | Full profiles | harry_potter, superheroes, seinfeld |
+
+## Files
+
+- `industry_templates.yaml` — company name patterns + industry tags for 6 verticals
+- `harry_potter.yaml` — ~85 businesses, ~105 individuals from the Wizarding World
+- `superheroes.yaml` — ~100 businesses, ~118 heroes/villains (Marvel + DC)
+- `seinfeld.yaml` — ~63 businesses, ~64 characters from the show
 
 ## What belongs here
 
 - **Business profiles** — company names, industries, countries
 - **Individual profiles** — first/last names for counterparties
+- **Industry templates** — name patterns with `{last}`, `{city}`, `{word}` Faker placeholders
 
 ## What does NOT belong here
 
@@ -14,30 +30,26 @@ name/identity variety when scaling funds flows ("generate 100 of these").
 - **Mutation profiles** — inline settings on `GenerationRecipeV1`
 - **Edge case configs** — inline settings on `GenerationRecipeV1`
 
-## Files
-
-- `seed_catalog.yaml` — single file containing all profile data.
-
 ## How profiles are used
 
-The generation pipeline picks profiles by modular cycling:
+The generation pipeline (`generate_from_recipe`) calls `seed_loader.generate_profiles(dataset, count, seed)`,
+then `pick_profile(biz, indiv, instance)` merges one business + one individual into a flat dict:
 
 ```python
-profile = profiles[instance_index % len(profiles)]
+{"business_name": "...", "industry": "...", "country": "US", "first_name": "...", "last_name": "..."}
 ```
 
-For N > profile count, profiles repeat deterministically.
+This dict feeds into `deep_format_map()` which substitutes `{first_name}`, `{last_name}`,
+`{business_name}`, etc. throughout flows and `instance_resources`.
 
-## Why YAML
+## Determinism
 
-YAML is easy to review and edit by non-engineers while staying
-git-friendly.
+All generation is seeded: `Faker.seed(recipe.seed)` produces identical output
+for the same `(dataset, count, seed)` triple. Curated datasets cycle deterministically
+when `count > len(profiles)`.
 
-## When to change format
+## Adding new datasets
 
-If this grows into a large corpus, move to:
-- `sqlite` for indexed weighted sampling and fast filtering
-- `parquet` for analytical-scale seed sets
-
-Keep YAML as the authoring format and compile it into a runtime
-index if needed.
+1. **Industry vertical**: add a new key to `industry_templates.yaml`
+2. **Pop-culture**: create `seeds/<name>.yaml` with `business_profiles` + `individual_profiles`
+3. Register in `seed_loader._DATASETS` dict

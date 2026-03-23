@@ -11,6 +11,28 @@
             </select>
         </div>
         <div class="form-group">
+            <label>Seed Dataset</label>
+            <select id="gen-seed-dataset">
+                {% if seed_datasets %}
+                {% set current_tier = namespace(value='') %}
+                {% for ds in seed_datasets %}
+                {% if ds.tier != current_tier.value %}
+                {% if current_tier.value %}</optgroup>{% endif %}
+                {% if ds.tier == 'faker' %}<optgroup label="General">
+                {% elif ds.tier == 'industry' %}<optgroup label="Industry Verticals">
+                {% elif ds.tier == 'curated' %}<optgroup label="Pop Culture">
+                {% endif %}
+                {% set current_tier.value = ds.tier %}
+                {% endif %}
+                <option value="{{ ds.name }}"{% if ds.name == 'standard' %} selected{% endif %}>{{ ds.label }}</option>
+                {% endfor %}
+                {% if current_tier.value %}</optgroup>{% endif %}
+                {% else %}
+                <option value="standard" selected>Standard</option>
+                {% endif %}
+            </select>
+        </div>
+        <div class="form-group">
             <label>Instances</label>
             <input type="number" id="gen-instances" value="100" min="1" max="5000">
         </div>
@@ -62,6 +84,7 @@ function buildRecipe() {
         flow_ref: document.getElementById('gen-flow-ref').value,
         instances: parseInt(document.getElementById('gen-instances').value),
         seed: parseInt(document.getElementById('gen-seed').value),
+        seed_dataset: document.getElementById('gen-seed-dataset').value,
         edge_case_frequency: parseFloat(document.getElementById('gen-edge').value),
         amount_variance_pct: parseFloat(document.getElementById('gen-variance').value),
         staged_count: parseInt(document.getElementById('gen-staged').value),

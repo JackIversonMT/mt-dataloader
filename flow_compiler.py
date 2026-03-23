@@ -10,7 +10,9 @@ into the existing pipeline.
 
 from __future__ import annotations
 
+import copy
 import random
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,6 +24,8 @@ from models import (
     OptionalGroupConfig,
     PaymentMixConfig,
 )
+
+import seed_loader
 
 __all__ = [
     "maybe_compile",
@@ -38,6 +42,7 @@ __all__ = [
     "compute_flow_status",
     "flow_account_deltas",
     "compile_diagnostics",
+    "deep_format_map",
 ]
 
 # ---------------------------------------------------------------------------
@@ -225,11 +230,62 @@ def flatten_optional_groups(
 # ---------------------------------------------------------------------------
 
 
-def clone_flow(flow: FundsFlowConfig, instance: int) -> dict:
-    """Clone a loaded flow for a specific instance."""
+def deep_format_map(obj: Any, mapping: dict[str, str]) -> Any:
+    """Recursively apply str.format_map to all string values.
+
+    Unknown placeholders are left empty via defaultdict(str) so patterns
+    with {business_name} don't crash when only individual data is provided.
+    """
+    safe = defaultdict(str, mapping)
+    if isinstance(obj, str):
+        try:
+            return obj.format_map(safe)
+        except (ValueError, KeyError):
+            return obj
+    if isinstance(obj, dict):
+        return {k: deep_format_map(v, mapping) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [deep_format_map(v, mapping) for v in obj]
+    return obj
+
+
+def _expand_instance_resources(
+    instance_resources: dict[str, list[dict]],
+    instance: int,
+    profile: dict[str, str],
+) -> dict[str, list[dict]]:
+    """Clone instance_resources templates with profile substitution.
+
+    Returns {section_name: [resource_dict, ...]} ready to merge.
+    """
+    mapping = {"instance": f"{instance:04d}", **profile}
+    result: dict[str, list[dict]] = {}
+    for section, templates in instance_resources.items():
+        section_items: list[dict] = []
+        for tpl in templates:
+            cloned = copy.deepcopy(tpl)
+            cloned = deep_format_map(cloned, mapping)
+            section_items.append(cloned)
+        result[section] = section_items
+    return result
+
+
+def clone_flow(
+    flow: FundsFlowConfig,
+    instance: int,
+    profile: dict[str, str] | None = None,
+) -> dict:
+    """Clone a loaded flow for a specific instance with optional profile substitution."""
     as_dict = flow.model_dump()
     as_dict["ref"] = f"{flow.ref}__{instance:04d}"
-    return as_dict
+
+    ir = as_dict.pop("instance_resources", None)
+
+    if profile:
+        mapping = {"instance": f"{instance:04d}", "ref": as_dict["ref"], **profile}
+        as_dict = deep_format_map(as_dict, mapping)
+
+    return as_dict, ir
 
 
 def apply_overrides(flow_dict: dict, overrides: dict[str, Any]) -> dict:
@@ -369,14 +425,25 @@ def generate_from_recipe(
             f"Available: {available}"
         )
 
+    biz_profiles, indiv_profiles = seed_loader.generate_profiles(
+        recipe.seed_dataset, recipe.instances, recipe.seed,
+    )
+
     staged_instances = select_staged_instances(
         recipe, recipe.instances, random.Random(recipe.seed)
     )
 
+    extra_resources: dict[str, list[dict]] = {}
     flows: list[FundsFlowConfig] = []
     for i in range(recipe.instances):
         rng = random.Random(recipe.seed + i)
-        flow_dict = clone_flow(pattern, i)
+        profile = seed_loader.pick_profile(biz_profiles, indiv_profiles, i)
+        flow_dict, instance_resources = clone_flow(pattern, i, profile)
+
+        if instance_resources:
+            expanded = _expand_instance_resources(instance_resources, i, profile)
+            for section, items in expanded.items():
+                extra_resources.setdefault(section, []).extend(items)
 
         if recipe.overrides:
             apply_overrides(flow_dict, recipe.overrides)
@@ -407,7 +474,9 @@ def generate_from_recipe(
         flows.append(FundsFlowConfig.model_validate(flow_dict))
 
     flow_irs = compile_flows(flows, base_config)
-    compiled = emit_dataloader_config(flow_irs, base_config=base_config)
+    compiled = emit_dataloader_config(
+        flow_irs, base_config=base_config, extra_resources=extra_resources,
+    )
 
     diagrams: list[str] = []
     for ir, flow_config in zip(flow_irs[:10], flows[:10]):
@@ -542,14 +611,23 @@ def compile_flows(
 def emit_dataloader_config(
     flow_irs: list[FlowIR],
     base_config: DataLoaderConfig,
+    extra_resources: dict[str, list[dict]] | None = None,
 ) -> DataLoaderConfig:
     """Emit FlowIR steps into DataLoaderConfig resource sections.
+
+    extra_resources is keyed by section name (e.g. "legal_entities")
+    and merged before flow steps so instance infrastructure is available
+    for ref resolution.
 
     The emitted config passes through ``DataLoaderConfig.model_validate()``
     which runs every existing Pydantic validator as a safety net.
     """
     data = base_config.model_dump(exclude_none=True)
     data["funds_flows"] = []
+
+    if extra_resources:
+        for section, items in extra_resources.items():
+            data.setdefault(section, []).extend(items)
 
     for flow_ir in flow_irs:
         for step in flow_ir.steps:

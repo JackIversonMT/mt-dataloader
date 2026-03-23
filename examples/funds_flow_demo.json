@@ -48,13 +48,14 @@
           "payment_type": "ach",
           "direction": "credit",
           "amount": 50000,
-          "internal_account_id": "@actor:ops_account"
+          "internal_account_id": "@actor:ops_account",
+          "description": "Incoming ACH deposit for {first_name} {last_name}"
         },
         {
           "step_id": "settle",
           "type": "ledger_transaction",
           "depends_on": ["deposit"],
-          "description": "Book the settled deposit to ledger",
+          "description": "Book the settled deposit for {first_name} {last_name}",
           "ledger_status": "pending",
           "ledger_entries": [
             {

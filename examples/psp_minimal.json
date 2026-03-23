@@ -1,44 +1,49 @@
 {
-    "connections": [
+  "connections": [
+    {
+      "ref": "demo_bank",
+      "entity_id": "example1",
+      "nickname": "PSP sandbox bank"
+    }
+  ],
+  "internal_accounts": [
+    {
+      "ref": "wallet_a",
+      "connection_id": "$ref:connection.demo_bank",
+      "name": "Wallet A",
+      "party_name": "Party A",
+      "currency": "USD"
+    },
+    {
+      "ref": "wallet_b",
+      "connection_id": "$ref:connection.demo_bank",
+      "name": "Wallet B",
+      "party_name": "Party B",
+      "currency": "USD"
+    }
+  ],
+  "funds_flows": [
+    {
+      "ref": "internal_transfer",
+      "pattern_type": "book_transfer",
+      "trace_key": "transfer_id",
+      "trace_value_template": "xfer-{ref}-{instance}",
+      "actors": {
+        "source_wallet": "$ref:internal_account.wallet_a",
+        "dest_wallet": "$ref:internal_account.wallet_b"
+      },
+      "steps": [
         {
-            "ref": "demo_bank",
-            "entity_id": "example1",
-            "nickname": "PSP sandbox bank"
+          "step_id": "book_move",
+          "type": "payment_order",
+          "payment_type": "book",
+          "direction": "credit",
+          "amount": 10000,
+          "originating_account_id": "@actor:source_wallet",
+          "receiving_account_id": "@actor:dest_wallet",
+          "description": "Minimal PSP internal transfer"
         }
-    ],
-
-    "internal_accounts": [
-        {
-            "ref": "wallet_a",
-            "connection_id": "$ref:connection.demo_bank",
-            "name": "Wallet A",
-            "party_name": "Party A",
-            "currency": "USD",
-            "metadata": {
-                "wallet_type": "user"
-            }
-        },
-        {
-            "ref": "wallet_b",
-            "connection_id": "$ref:connection.demo_bank",
-            "name": "Wallet B",
-            "party_name": "Party B",
-            "currency": "USD",
-            "metadata": {
-                "wallet_type": "user"
-            }
-        }
-    ],
-
-    "payment_orders": [
-        {
-            "ref": "po_book_move",
-            "type": "book",
-            "direction": "credit",
-            "amount": 10000,
-            "originating_account_id": "$ref:internal_account.wallet_a",
-            "receiving_account_id": "$ref:internal_account.wallet_b",
-            "description": "Minimal PSP internal transfer (no ledger, no VA, no EP/IPD)"
-        }
-    ]
+      ]
+    }
+  ]
 }

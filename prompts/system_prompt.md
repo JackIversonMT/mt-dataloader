@@ -249,6 +249,32 @@ of manually assembling individual resources.
 }
 ```
 
+### `instance_resources` — per-instance infrastructure templates
+
+When a flow requires per-instance infrastructure (legal entities, counterparties,
+internal accounts, ledger accounts), use `instance_resources` instead of manually
+defining N copies of each resource:
+
+```json
+"instance_resources": {
+  "legal_entities": [
+    { "ref": "user_{instance}", "legal_entity_type": "individual",
+      "first_name": "{first_name}", "last_name": "{last_name}" }
+  ],
+  "internal_accounts": [
+    { "ref": "user_{instance}_wallet", "connection_id": "$ref:connection.bank",
+      "name": "{first_name} {last_name} Wallet", "party_name": "{first_name} {last_name}",
+      "currency": "USD" }
+  ]
+}
+```
+
+Available placeholders: `{instance}` (zero-padded 4-digit), `{first_name}`,
+`{last_name}`, `{business_name}`, `{industry}`, `{country}`.
+
+Placeholders are resolved from seed profiles at generation time via `deep_format_map()`.
+Actor refs can also use `{instance}` (e.g., `"$ref:internal_account.user_{instance}_wallet"`).
+
 ### Rules for funds_flows:
 1. Always include `trace_key` (generic metadata key) and `trace_value_template`
 2. Use `@actor:alias` syntax in step payloads — the compiler resolves them
@@ -257,6 +283,8 @@ of manually assembling individual resources.
 5. Step `type` is the resource type; use `payment_type` for the method (ach/wire)
 6. Include `ledger_entries` on steps that need double-entry bookkeeping
 7. Use `depends_on` for ordering between steps (references step_id, not $ref:)
+8. Use `instance_resources` for per-user infrastructure (LEs, CPs, IAs, LAs)
+9. Use `{placeholder}` syntax in descriptions and names for profile injection
 
 ---
 

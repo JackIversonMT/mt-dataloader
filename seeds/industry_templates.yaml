@@ -1,0 +1,89 @@
+tech:
+  label: "Tech / SaaS"
+  company_patterns:
+    - "{last} Labs"
+    - "{last} Systems Inc."
+    - "{word}Pay Technologies"
+    - "{city} Data Sciences"
+    - "Neo{word} AI"
+    - "{last} Cloud Solutions"
+    - "{word}Verse Analytics"
+    - "{last} & {last} Software"
+    - "{word}Stack Platform"
+    - "{last} Cybersecurity"
+  industry_tags: [fintech, saas, ai_ml, cloud_infrastructure, cybersecurity, devtools]
+
+government:
+  label: "Government"
+  company_patterns:
+    - "City of {city}"
+    - "County of {last}shire"
+    - "{city} Metro Transit Authority"
+    - "{city} Water District"
+    - "Port Authority of {city}"
+    - "{city} Unified School District"
+    - "{last} County Sheriff's Office"
+    - "{city} Parks & Recreation"
+    - "{city} Housing Authority"
+    - "{last} County Tax Assessor"
+  industry_tags: [municipal, county, state_agency, transit, water_utility, school_district]
+
+payroll:
+  label: "Payroll / HR"
+  company_patterns:
+    - "{last}Pay Solutions"
+    - "{word}Force Staffing"
+    - "{last} HR Group"
+    - "Clear{word} Payroll"
+    - "{last} & Associates PEO"
+    - "{word}Bridge Workforce"
+    - "{city} Staffing Partners"
+    - "{last} Benefits Admin"
+    - "True{word} Talent"
+    - "{last} Workforce Management"
+  industry_tags: [payroll_processing, staffing, hr_technology, benefits_admin, peo]
+
+manufacturing:
+  label: "Manufacturing"
+  company_patterns:
+    - "{last} Steel Co."
+    - "{city} Plastics Inc."
+    - "{word}Ridge Manufacturing"
+    - "{last} Precision Parts"
+    - "Summit {word} Industries"
+    - "{last} Aerospace Components"
+    - "{city} Food Processing LLC"
+    - "{last} & Sons Fabrication"
+    - "{word}Tech Electronics"
+    - "Atlas {last} Metals"
+  industry_tags: [steel, plastics, electronics, automotive_parts, aerospace, food_processing]
+
+property_management:
+  label: "Property Management"
+  company_patterns:
+    - "{last} Property Group"
+    - "{city} Residential Management"
+    - "Harbor{word} Communities"
+    - "{last} Realty Partners"
+    - "{city} Senior Living"
+    - "Oak{word} HOA Management"
+    - "{last} Commercial Properties"
+    - "{city} Student Housing Co."
+    - "Crest{word} Apartments"
+    - "{last} & {last} Real Estate"
+  industry_tags: [residential, commercial, hoa, mixed_use, student_housing, senior_living]
+
+construction:
+  label: "Construction"
+  company_patterns:
+    - "{last} Builders LLC"
+    - "{city} General Contractors"
+    - "Apex {word} & Masonry"
+    - "{last} Construction Co."
+    - "{word}Line Electrical"
+    - "{last} Plumbing & Mechanical"
+    - "{city} Roofing Specialists"
+    - "{last} HVAC Services"
+    - "Cornerstone {word} Group"
+    - "{last} Demolition & Earthwork"
+  industry_tags: [general_contractor, electrical, plumbing, hvac, concrete, roofing, demolition]

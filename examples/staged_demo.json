@@ -1,124 +1,139 @@
 {
-    "connections": [
-        {
-            "ref": "mt_bank",
-            "entity_id": "example1",
-            "nickname": "Demo PSP"
-        }
-    ],
-
-    "legal_entities": [
-        {
-            "ref": "platform_corp",
-            "legal_entity_type": "business",
-            "business_name": "Acme Payments Inc.",
-            "legal_structure": "corporation"
-        },
-        {
-            "ref": "buyer_alice",
+  "connections": [
+    {
+      "ref": "mt_bank",
+      "entity_id": "example1",
+      "nickname": "Demo PSP"
+    }
+  ],
+  "legal_entities": [
+    {
+      "ref": "platform_corp",
+      "legal_entity_type": "business",
+      "business_name": "Acme Payments Inc.",
+      "legal_structure": "corporation"
+    }
+  ],
+  "internal_accounts": [
+    {
+      "ref": "platform_revenue",
+      "connection_id": "$ref:connection.mt_bank",
+      "legal_entity_id": "$ref:legal_entity.platform_corp",
+      "name": "Acme Revenue Account",
+      "party_name": "Acme Payments Inc.",
+      "currency": "USD"
+    }
+  ],
+  "funds_flows": [
+    {
+      "ref": "staged_marketplace",
+      "pattern_type": "marketplace_settlement",
+      "trace_key": "order_id",
+      "trace_value_template": "ORD-{ref}-{instance}",
+      "actors": {
+        "buyer_wallet": "$ref:internal_account.buyer_{instance}_wallet",
+        "seller_wallet": "$ref:internal_account.seller_{instance}_wallet",
+        "platform_account": "$ref:internal_account.platform_revenue",
+        "seller_cp": "$ref:counterparty.seller_{instance}_cp.account[0]"
+      },
+      "instance_resources": {
+        "legal_entities": [
+          {
+            "ref": "buyer_{instance}",
             "legal_entity_type": "individual",
-            "first_name": "Alice",
-            "last_name": "Chen"
-        },
-        {
-            "ref": "seller_bob",
+            "first_name": "{first_name}",
+            "last_name": "{last_name}"
+          },
+          {
+            "ref": "seller_{instance}",
             "legal_entity_type": "individual",
-            "first_name": "Bob",
-            "last_name": "Rivera"
-        }
-    ],
-
-    "counterparties": [
-        {
-            "ref": "seller_bob_cp",
-            "name": "Bob Rivera",
-            "legal_entity_id": "$ref:legal_entity.seller_bob",
+            "first_name": "{first_name}",
+            "last_name": "{last_name}"
+          }
+        ],
+        "counterparties": [
+          {
+            "ref": "seller_{instance}_cp",
+            "name": "{first_name} {last_name}",
+            "legal_entity_id": "$ref:legal_entity.seller_{instance}",
             "accounts": [
-                {
-                    "party_name": "Bob Rivera",
-                    "party_type": "individual",
-                    "account_type": "checking",
-                    "sandbox_behavior": "success",
-                    "metadata": {
-                        "account_purpose": "seller_payout"
-                    }
-                }
+              {
+                "party_name": "{first_name} {last_name}",
+                "party_type": "individual",
+                "account_type": "checking",
+                "sandbox_behavior": "success",
+                "metadata": { "account_purpose": "seller_payout" }
+              }
             ]
-        }
-    ],
-
-    "internal_accounts": [
-        {
-            "ref": "buyer_wallet",
+          }
+        ],
+        "internal_accounts": [
+          {
+            "ref": "buyer_{instance}_wallet",
             "connection_id": "$ref:connection.mt_bank",
-            "legal_entity_id": "$ref:legal_entity.buyer_alice",
-            "name": "Alice Buyer Wallet",
-            "party_name": "Alice Chen",
+            "legal_entity_id": "$ref:legal_entity.buyer_{instance}",
+            "name": "{first_name} Buyer Wallet",
+            "party_name": "{first_name} {last_name}",
             "currency": "USD"
-        },
-        {
-            "ref": "seller_wallet",
+          },
+          {
+            "ref": "seller_{instance}_wallet",
             "connection_id": "$ref:connection.mt_bank",
-            "legal_entity_id": "$ref:legal_entity.seller_bob",
-            "name": "Bob Seller Wallet",
-            "party_name": "Bob Rivera",
+            "legal_entity_id": "$ref:legal_entity.seller_{instance}",
+            "name": "{first_name} Seller Wallet",
+            "party_name": "{first_name} {last_name}",
             "currency": "USD"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "step_id": "buyer_deposit",
+          "type": "incoming_payment_detail",
+          "payment_type": "ach",
+          "direction": "credit",
+          "amount": 5000000,
+          "internal_account_id": "@actor:buyer_wallet",
+          "description": "Buyer deposits $50,000 via ACH",
+          "staged": true
         },
         {
-            "ref": "platform_revenue",
-            "connection_id": "$ref:connection.mt_bank",
-            "legal_entity_id": "$ref:legal_entity.platform_corp",
-            "name": "Acme Revenue Account",
-            "party_name": "Acme Payments Inc.",
-            "currency": "USD"
-        }
-    ],
-
-    "incoming_payment_details": [
-        {
-            "ref": "ipd_buyer_deposit",
-            "type": "ach",
-            "direction": "credit",
-            "amount": 5000000,
-            "internal_account_id": "$ref:internal_account.buyer_wallet",
-            "description": "Buyer deposits $50,000 via ACH",
-            "staged": true
-        }
-    ],
-
-    "payment_orders": [
-        {
-            "ref": "po_platform_fee",
-            "type": "book",
-            "direction": "credit",
-            "amount": 150000,
-            "originating_account_id": "$ref:internal_account.buyer_wallet",
-            "receiving_account_id": "$ref:internal_account.platform_revenue",
-            "depends_on": ["$ref:incoming_payment_detail.ipd_buyer_deposit"],
-            "description": "Platform takes 3% fee ($1,500)",
-            "staged": true
+          "step_id": "platform_fee",
+          "type": "payment_order",
+          "payment_type": "book",
+          "direction": "credit",
+          "amount": 150000,
+          "originating_account_id": "@actor:buyer_wallet",
+          "receiving_account_id": "@actor:platform_account",
+          "depends_on": ["buyer_deposit"],
+          "description": "Platform takes 3% fee ($1,500)",
+          "staged": true
         },
         {
-            "ref": "po_settle_seller",
-            "type": "book",
-            "direction": "credit",
-            "amount": 4850000,
-            "originating_account_id": "$ref:internal_account.buyer_wallet",
-            "receiving_account_id": "$ref:internal_account.seller_wallet",
-            "depends_on": ["$ref:payment_order.po_platform_fee"],
-            "description": "Net proceeds ($48,500) to seller wallet",
-            "staged": true
+          "step_id": "settle_seller",
+          "type": "payment_order",
+          "payment_type": "book",
+          "direction": "credit",
+          "amount": 4850000,
+          "originating_account_id": "@actor:buyer_wallet",
+          "receiving_account_id": "@actor:seller_wallet",
+          "depends_on": ["platform_fee"],
+          "description": "Net proceeds ($48,500) to seller wallet",
+          "staged": true
         },
         {
-            "ref": "po_payout_seller",
-            "type": "ach",
-            "direction": "credit",
-            "amount": 4850000,
-            "originating_account_id": "$ref:internal_account.seller_wallet",
-            "receiving_account_id": "$ref:counterparty.seller_bob_cp.account[0]",
-            "depends_on": ["$ref:payment_order.po_settle_seller"],
-            "description": "ACH payout to seller bank account",
-            "staged": true
+          "step_id": "payout_seller",
+          "type": "payment_order",
+          "payment_type": "ach",
+          "direction": "credit",
+          "amount": 4850000,
+          "originating_account_id": "@actor:seller_wallet",
+          "receiving_account_id": "@actor:seller_cp",
+          "depends_on": ["settle_seller"],
+          "description": "ACH payout to seller bank account",
+          "staged": true
         }
-    ]
+      ]
+    }
+  ]
 }

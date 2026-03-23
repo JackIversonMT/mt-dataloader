@@ -556,14 +556,15 @@ class TestPassthroughRegression:
         assert result is config
 
     def test_existing_examples_passthrough(self):
-        """All existing examples without funds_flows compile unchanged."""
+        """Examples without funds_flows compile unchanged; those with funds_flows compile to a new config."""
         for path in EXAMPLES_DIR.glob("*.json"):
-            if path.name == "funds_flow_demo.json":
-                continue
             raw = path.read_text()
             try:
                 config = DataLoaderConfig.model_validate_json(raw)
             except Exception:
                 continue
-            result, _ = maybe_compile(config)
-            assert result is config, f"{path.name} should passthrough"
+            result, flow_irs = maybe_compile(config)
+            if config.funds_flows:
+                assert flow_irs is not None, f"{path.name} should compile"
+            else:
+                assert result is config, f"{path.name} should passthrough"

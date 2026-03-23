@@ -39,7 +39,7 @@ from models import (
     GenerationRecipeV1,
     PaymentMixConfig,
 )
-from seed_loader import get_profiles, load_seed_catalog, pick_profile
+from seed_loader import generate_profiles, list_datasets, pick_profile
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
@@ -236,18 +236,18 @@ class TestPaymentMixConfig:
 class TestCloneFlow:
     def test_instance_ref_format(self):
         flow = _make_flow_config()
-        cloned = clone_flow(flow, 42)
+        cloned, _ = clone_flow(flow, 42)
         assert cloned["ref"] == "test_flow__0042"
 
     def test_deep_copy(self):
         flow = _make_flow_config()
-        cloned = clone_flow(flow, 0)
+        cloned, _ = clone_flow(flow, 0)
         cloned["steps"][0]["amount"] = 99999
         assert flow.steps[0].amount == 10000
 
     def test_actors_are_real_refs(self):
         flow = _make_flow_config()
-        cloned = clone_flow(flow, 0)
+        cloned, _ = clone_flow(flow, 0)
         for alias, val in cloned["actors"].items():
             assert val.startswith("$ref:")
 
@@ -260,19 +260,19 @@ class TestCloneFlow:
 class TestApplyOverrides:
     def test_simple_override(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         apply_overrides(d, {"pattern_type": "custom"})
         assert d["pattern_type"] == "custom"
 
     def test_nested_override(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         apply_overrides(d, {"steps.0.amount": 99999})
         assert d["steps"][0]["amount"] == 99999
 
     def test_empty_overrides_noop(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         original = json.dumps(d, sort_keys=True)
         apply_overrides(d, {})
         assert json.dumps(d, sort_keys=True) == original
@@ -286,14 +286,14 @@ class TestApplyOverrides:
 class TestApplyAmountVariance:
     def test_zero_variance_unchanged(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         original_amount = d["steps"][0]["amount"]
         apply_amount_variance(d, 0.0, random.Random(42))
         assert d["steps"][0]["amount"] == original_amount
 
     def test_variance_jitters_within_range(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         base_amount = d["steps"][0]["amount"]
         apply_amount_variance(d, 5.0, random.Random(42))
         new_amount = d["steps"][0]["amount"]
@@ -302,15 +302,15 @@ class TestApplyAmountVariance:
 
     def test_deterministic_with_same_seed(self):
         flow = _make_flow_config()
-        d1 = clone_flow(flow, 0)
-        d2 = clone_flow(flow, 0)
+        d1, _ = clone_flow(flow, 0)
+        d2, _ = clone_flow(flow, 0)
         apply_amount_variance(d1, 10.0, random.Random(42))
         apply_amount_variance(d2, 10.0, random.Random(42))
         assert d1["steps"][0]["amount"] == d2["steps"][0]["amount"]
 
     def test_applies_to_ledger_entries(self):
         flow = _make_flow_config()
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         original_debit = d["steps"][1]["ledger_entries"][0]["amount"]
         apply_amount_variance(d, 10.0, random.Random(99))
         new_debit = d["steps"][1]["ledger_entries"][0]["amount"]
@@ -320,7 +320,7 @@ class TestApplyAmountVariance:
         """The review fix: same jitter per step keeps DR == CR."""
         flow = _make_flow_config()
         for seed in range(50):
-            d = clone_flow(flow, 0)
+            d, _ = clone_flow(flow, 0)
             apply_amount_variance(d, 20.0, random.Random(seed))
             settle_step = d["steps"][1]
             entries = settle_step.get("ledger_entries", [])
@@ -338,7 +338,7 @@ class TestApplyAmountVariance:
                 {"step_id": "ret", "type": "return", "depends_on": ["deposit"], "amount": 5000},
             ],
         }])
-        d = clone_flow(flow, 0)
+        d, _ = clone_flow(flow, 0)
         apply_amount_variance(d, 10.0, random.Random(42))
         ret_amount = d["optional_groups"][0]["steps"][0]["amount"]
         assert ret_amount >= 1
@@ -351,10 +351,11 @@ class TestApplyAmountVariance:
 
 class TestActivateOptionalGroups:
     def _flow_with_groups(self):
-        return clone_flow(_make_flow_config(optional_groups=[
+        d, _ = clone_flow(_make_flow_config(optional_groups=[
             {"label": "return_path", "steps": [{"step_id": "ret", "type": "return", "depends_on": ["deposit"]}]},
             {"label": "reversal_path", "steps": [{"step_id": "rev", "type": "reversal", "depends_on": ["deposit"]}]},
         ]), 0)
+        return d
 
     def test_zero_frequency_activates_nothing(self):
         d = self._flow_with_groups()
@@ -477,22 +478,23 @@ class TestStagingAtScale:
 
 
 class TestSeedLoader:
-    def test_load_seed_catalog(self):
-        catalog = load_seed_catalog()
-        assert isinstance(catalog, dict)
-        assert "business_profiles" in catalog
-        assert "individual_profiles" in catalog
+    def test_list_datasets(self):
+        datasets = list_datasets()
+        assert len(datasets) >= 10
+        names = {d["name"] for d in datasets}
+        assert "standard" in names
+        assert "harry_potter" in names
 
-    def test_get_profiles(self):
-        biz, ind = get_profiles()
-        assert len(biz) >= 1
-        assert len(ind) >= 1
+    def test_generate_profiles_standard(self):
+        biz, ind = generate_profiles("standard", 10, 42)
+        assert len(biz) == 10
+        assert len(ind) == 10
 
     def test_pick_profile_cycles(self):
-        biz, _ = get_profiles()
-        p0 = pick_profile(biz, 0)
-        p1 = pick_profile(biz, len(biz))
-        assert p0 == p1
+        biz, ind = generate_profiles("standard", 3, 42)
+        p0 = pick_profile(biz, ind, 0)
+        p3 = pick_profile(biz, ind, 3)
+        assert p0 == p3
 
 
 # =========================================================================

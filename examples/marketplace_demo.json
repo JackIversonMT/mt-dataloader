@@ -1,261 +1,160 @@
 {
-    "connections": [
-        {
-            "ref": "modern_treasury_bank",
-            "entity_id": "example1",
-            "nickname": "Modern Treasury PSP"
-        }
-    ],
-
-    "legal_entities": [
-        {
-            "ref": "boats_group_inc",
-            "legal_entity_type": "business",
-            "business_name": "Boats Group, Inc.",
-            "legal_structure": "corporation",
-            "metadata": {
-                "user_type": "platform",
-                "marketplace_role": "operator"
-            }
-        },
-        {
-            "ref": "buyer_owen_hart",
+  "connections": [
+    {
+      "ref": "modern_treasury_bank",
+      "entity_id": "example1",
+      "nickname": "Modern Treasury PSP"
+    }
+  ],
+  "legal_entities": [
+    {
+      "ref": "platform_corp",
+      "legal_entity_type": "business",
+      "business_name": "Boats Group, Inc.",
+      "legal_structure": "corporation",
+      "metadata": { "user_type": "platform" }
+    }
+  ],
+  "internal_accounts": [
+    {
+      "ref": "platform_revenue",
+      "connection_id": "$ref:connection.modern_treasury_bank",
+      "legal_entity_id": "$ref:legal_entity.platform_corp",
+      "name": "Boats Group Revenue Account",
+      "party_name": "Boats Group, Inc.",
+      "currency": "USD",
+      "metadata": { "account_purpose": "platform_revenue" }
+    }
+  ],
+  "funds_flows": [
+    {
+      "ref": "marketplace_purchase",
+      "pattern_type": "marketplace_settlement",
+      "trace_key": "listing_id",
+      "trace_value_template": "BOAT-{ref}-{instance}",
+      "actors": {
+        "buyer_wallet": "$ref:internal_account.buyer_{instance}_wallet",
+        "seller_wallet": "$ref:internal_account.seller_{instance}_wallet",
+        "platform_account": "$ref:internal_account.platform_revenue",
+        "seller_cp": "$ref:counterparty.seller_{instance}_cp.account[0]"
+      },
+      "instance_resources": {
+        "legal_entities": [
+          {
+            "ref": "buyer_{instance}",
             "legal_entity_type": "individual",
-            "first_name": "Owen",
-            "last_name": "Hart",
-            "metadata": {
-                "user_type": "buyer",
-                "marketplace_role": "retail_buyer"
-            }
-        },
-        {
-            "ref": "buyer_maya_foster",
-            "legal_entity_type": "individual",
-            "first_name": "Maya",
-            "last_name": "Foster",
-            "metadata": {
-                "user_type": "buyer",
-                "marketplace_role": "retail_buyer"
-            }
-        },
-        {
-            "ref": "seller_bluewater_marine",
+            "first_name": "{first_name}",
+            "last_name": "{last_name}",
+            "metadata": { "user_type": "buyer" }
+          },
+          {
+            "ref": "seller_{instance}",
             "legal_entity_type": "business",
-            "business_name": "Bluewater Marine LLC",
-            "legal_structure": "llc",
-            "metadata": {
-                "user_type": "seller",
-                "marketplace_role": "professional_dealer"
-            }
-        }
-    ],
-
-    "counterparties": [
-        {
-            "ref": "buyer_owen_cp",
-            "name": "Owen Hart",
-            "legal_entity_id": "$ref:legal_entity.buyer_owen_hart",
+            "business_name": "{business_name}",
+            "metadata": { "user_type": "seller" }
+          }
+        ],
+        "counterparties": [
+          {
+            "ref": "seller_{instance}_cp",
+            "name": "{business_name}",
+            "legal_entity_id": "$ref:legal_entity.seller_{instance}",
             "accounts": [
-                {
-                    "party_name": "Owen Hart",
-                    "party_type": "individual",
-                    "account_type": "checking",
-                    "sandbox_behavior": "return",
-                    "sandbox_return_code": "R01",
-                    "metadata": {
-                        "account_purpose": "buyer_funding_source",
-                        "user_id": "USR-BUYER-1001",
-                        "flow_role": "failed_ach_pull",
-                        "account_label": "buyer_1_external_account"
-                    }
-                }
-            ],
-            "metadata": {
-                "user_id": "USR-BUYER-1001",
-                "kyc_status": "approved"
-            }
-        },
-        {
-            "ref": "buyer_maya_cp",
-            "name": "Maya Foster",
-            "legal_entity_id": "$ref:legal_entity.buyer_maya_foster",
-            "accounts": [
-                {
-                    "party_name": "Maya Foster",
-                    "party_type": "individual",
-                    "account_type": "checking",
-                    "sandbox_behavior": "success",
-                    "metadata": {
-                        "account_purpose": "buyer_funding_source",
-                        "user_id": "USR-BUYER-1002",
-                        "flow_role": "ipd_origin_reference_only",
-                        "account_label": "buyer_2_external_account"
-                    }
-                }
-            ],
-            "metadata": {
-                "user_id": "USR-BUYER-1002",
-                "kyc_status": "approved"
-            }
-        },
-        {
-            "ref": "seller_bluewater_cp",
-            "name": "Bluewater Marine LLC",
-            "legal_entity_id": "$ref:legal_entity.seller_bluewater_marine",
-            "accounts": [
-                {
-                    "party_name": "Bluewater Marine LLC",
-                    "party_type": "business",
-                    "account_type": "checking",
-                    "sandbox_behavior": "success",
-                    "metadata": {
-                        "account_purpose": "seller_payout_destination",
-                        "user_id": "USR-SELLER-2001",
-                        "flow_role": "seller_external_bank",
-                        "account_label": "seller_operating_account"
-                    }
-                }
-            ],
-            "metadata": {
-                "user_id": "USR-SELLER-2001",
-                "kyc_status": "approved"
-            }
-        }
-    ],
-
-    "internal_accounts": [
-        {
-            "ref": "buyer_owen_wallet",
+              {
+                "party_name": "{business_name}",
+                "party_type": "business",
+                "account_type": "checking",
+                "sandbox_behavior": "success",
+                "metadata": { "account_purpose": "seller_payout" }
+              }
+            ]
+          }
+        ],
+        "internal_accounts": [
+          {
+            "ref": "buyer_{instance}_wallet",
             "connection_id": "$ref:connection.modern_treasury_bank",
-            "legal_entity_id": "$ref:legal_entity.buyer_owen_hart",
-            "name": "Buyer Owen Payment Account",
-            "party_name": "Owen Hart",
+            "legal_entity_id": "$ref:legal_entity.buyer_{instance}",
+            "name": "{first_name} {last_name} Buyer Wallet",
+            "party_name": "{first_name} {last_name}",
             "currency": "USD",
-            "metadata": {
-                "account_purpose": "buyer_sub_account",
-                "user_id": "USR-BUYER-1001",
-                "linked_listing": "BOAT-2026-0847"
-            }
-        },
-        {
-            "ref": "buyer_maya_wallet",
+            "metadata": { "account_purpose": "buyer_sub_account" }
+          },
+          {
+            "ref": "seller_{instance}_wallet",
             "connection_id": "$ref:connection.modern_treasury_bank",
-            "legal_entity_id": "$ref:legal_entity.buyer_maya_foster",
-            "name": "Buyer Maya Payment Account",
-            "party_name": "Maya Foster",
+            "legal_entity_id": "$ref:legal_entity.seller_{instance}",
+            "name": "{business_name} Seller Wallet",
+            "party_name": "{business_name}",
             "currency": "USD",
-            "metadata": {
-                "account_purpose": "buyer_sub_account",
-                "user_id": "USR-BUYER-1002",
-                "linked_listing": "BOAT-2026-0847"
-            }
+            "metadata": { "account_purpose": "seller_sub_account" }
+          }
+        ]
+      },
+      "steps": [
+        {
+          "step_id": "buyer_deposit",
+          "type": "incoming_payment_detail",
+          "payment_type": "ach",
+          "direction": "credit",
+          "amount": 13750000,
+          "internal_account_id": "@actor:buyer_wallet",
+          "description": "Buyer incoming ACH deposit for purchase"
         },
         {
-            "ref": "seller_bluewater_wallet",
-            "connection_id": "$ref:connection.modern_treasury_bank",
-            "legal_entity_id": "$ref:legal_entity.seller_bluewater_marine",
-            "name": "Bluewater Marine Payment Account",
-            "party_name": "Bluewater Marine LLC",
-            "currency": "USD",
-            "metadata": {
-                "account_purpose": "seller_sub_account",
-                "user_id": "USR-SELLER-2001",
-                "linked_listing": "BOAT-2026-0847"
-            }
+          "step_id": "platform_fee",
+          "type": "payment_order",
+          "payment_type": "book",
+          "direction": "credit",
+          "amount": 412500,
+          "originating_account_id": "@actor:buyer_wallet",
+          "receiving_account_id": "@actor:platform_account",
+          "depends_on": ["buyer_deposit"],
+          "description": "Marketplace commission (3%)",
+          "metadata": { "fee_type": "marketplace_commission", "fee_rate_pct": "3.0" }
         },
         {
-            "ref": "boats_group_revenue",
-            "connection_id": "$ref:connection.modern_treasury_bank",
-            "legal_entity_id": "$ref:legal_entity.boats_group_inc",
-            "name": "Boats Group Revenue Account",
-            "party_name": "Boats Group, Inc.",
-            "currency": "USD",
-            "metadata": {
-                "account_purpose": "platform_revenue",
-                "platform_id": "BOATS-GROUP",
-                "linked_listing": "BOAT-2026-0847"
-            }
+          "step_id": "settle_seller",
+          "type": "payment_order",
+          "payment_type": "book",
+          "direction": "credit",
+          "amount": 13337500,
+          "originating_account_id": "@actor:buyer_wallet",
+          "receiving_account_id": "@actor:seller_wallet",
+          "depends_on": ["platform_fee"],
+          "description": "Net proceeds to seller wallet"
+        },
+        {
+          "step_id": "payout_seller",
+          "type": "payment_order",
+          "payment_type": "ach",
+          "direction": "credit",
+          "amount": 13337500,
+          "originating_account_id": "@actor:seller_wallet",
+          "receiving_account_id": "@actor:seller_cp",
+          "depends_on": ["settle_seller"],
+          "description": "ACH payout to seller bank account"
         }
-    ],
-
-    "incoming_payment_details": [
+      ],
+      "optional_groups": [
         {
-            "ref": "ipd_buyer_maya_deposit",
-            "type": "ach",
-            "direction": "credit",
-            "amount": 13750000,
-            "internal_account_id": "$ref:internal_account.buyer_maya_wallet",
-            "description": "Buyer 2 incoming ACH deposit for boat purchase"
+          "label": "ACH return (NSF)",
+          "trigger": "system",
+          "steps": [
+            {
+              "step_id": "nsf_ach_pull",
+              "type": "payment_order",
+              "payment_type": "ach",
+              "direction": "debit",
+              "amount": 13750000,
+              "originating_account_id": "@actor:buyer_wallet",
+              "receiving_account_id": "@actor:seller_cp",
+              "depends_on": ["buyer_deposit"],
+              "description": "ACH debit pull that auto-returns R01"
+            }
+          ]
         }
-    ],
-
-    "payment_orders": [
-        {
-            "ref": "po_collect_buyer_owen",
-            "type": "ach",
-            "direction": "debit",
-            "amount": 12190000,
-            "originating_account_id": "$ref:internal_account.buyer_owen_wallet",
-            "receiving_account_id": "$ref:counterparty.buyer_owen_cp.account[0]",
-            "description": "ACH debit pull from buyer 1 that auto-returns NSF",
-            "metadata": {
-                "listing_id": "BOAT-2026-0847",
-                "transaction_type": "ach_collection",
-                "demo_purpose": "sandbox_auto_return_via_po",
-                "sandbox_note": "return simulation requires PO to counterparty; not an IPD"
-            }
-        },
-        {
-            "ref": "po_buyer_maya_fee",
-            "type": "book",
-            "direction": "credit",
-            "amount": 412500,
-            "originating_account_id": "$ref:internal_account.buyer_maya_wallet",
-            "receiving_account_id": "$ref:internal_account.boats_group_revenue",
-            "depends_on": [
-                "$ref:incoming_payment_detail.ipd_buyer_maya_deposit"
-            ],
-            "description": "Boats Group marketplace commission collected from buyer 2 wallet",
-            "metadata": {
-                "listing_id": "BOAT-2026-0847",
-                "transaction_type": "platform_fee",
-                "fee_type": "marketplace_commission",
-                "fee_rate_pct": "3.0"
-            }
-        },
-        {
-            "ref": "po_settle_seller_bluewater",
-            "type": "book",
-            "direction": "credit",
-            "amount": 13337500,
-            "originating_account_id": "$ref:internal_account.buyer_maya_wallet",
-            "receiving_account_id": "$ref:internal_account.seller_bluewater_wallet",
-            "depends_on": [
-                "$ref:payment_order.po_buyer_maya_fee"
-            ],
-            "description": "Net boat sale proceeds transferred from buyer 2 wallet to seller wallet",
-            "metadata": {
-                "listing_id": "BOAT-2026-0847",
-                "transaction_type": "marketplace_settlement",
-                "boat_id": "BOAT-2026-0847"
-            }
-        },
-        {
-            "ref": "po_payout_seller_bluewater",
-            "type": "ach",
-            "direction": "credit",
-            "amount": 13337500,
-            "originating_account_id": "$ref:internal_account.seller_bluewater_wallet",
-            "receiving_account_id": "$ref:counterparty.seller_bluewater_cp.account[0]",
-            "depends_on": [
-                "$ref:payment_order.po_settle_seller_bluewater"
-            ],
-            "description": "Automatic ACH payout to seller external account after funds land in seller wallet",
-            "metadata": {
-                "listing_id": "BOAT-2026-0847",
-                "transaction_type": "seller_payout",
-                "boat_id": "BOAT-2026-0847"
-            }
-        }
-    ]
+      ]
+    }
+  ]
 }

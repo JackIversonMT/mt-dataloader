@@ -680,14 +680,18 @@ async def discover_org(
 
         la_refs = _assign_unique_refs("ledger_account", la_names)
         for la, ref in zip(la_objects, la_refs):
+            _currency = getattr(la, "currency", None) or "USD"
+            if _currency == "USD" and la.balances and la.balances.pending_balance:
+                _currency = la.balances.pending_balance.currency or "USD"
+            _normal_balance = getattr(la, "normal_balance", None) or "credit"
             result.ledger_accounts.append(
                 DiscoveredLedgerAccount(
                     id=la.id,
                     name=la.name or "",
-                    currency=la.currency or "USD",
+                    currency=_currency,
                     ledger_id=la.ledger_id,
                     ledger_ref=ledger_id_to_ref.get(la.ledger_id, ""),
-                    normal_balance=la.normal_balance or "credit",
+                    normal_balance=_normal_balance,
                     auto_ref=ref,
                 )
             )
@@ -703,14 +707,18 @@ async def discover_org(
 
         lac_refs = _assign_unique_refs("ledger_account_category", lac_names)
         for lac, ref in zip(lac_objects, lac_refs):
+            _lac_currency = getattr(lac, "currency", None) or "USD"
+            if _lac_currency == "USD" and lac.balances and lac.balances.pending_balance:
+                _lac_currency = lac.balances.pending_balance.currency or "USD"
+            _lac_normal_balance = getattr(lac, "normal_balance", None) or "credit"
             result.ledger_account_categories.append(
                 DiscoveredLedgerAccountCategory(
                     id=lac.id,
                     name=lac.name or "",
-                    currency=lac.currency or "USD",
+                    currency=_lac_currency,
                     ledger_id=lac.ledger_id,
                     ledger_ref=ledger_id_to_ref.get(lac.ledger_id, ""),
-                    normal_balance=lac.normal_balance or "credit",
+                    normal_balance=_lac_normal_balance,
                     auto_ref=ref,
                 )
             )

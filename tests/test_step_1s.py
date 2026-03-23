@@ -368,21 +368,19 @@ _SEEDS_DIR = Path(__file__).resolve().parent.parent / "seeds"
 
 
 class TestSeedCatalog:
-    def test_loads_and_has_sections(self):
-        catalog = yaml.safe_load(
-            (_SEEDS_DIR / "seed_catalog.yaml").read_text()
-        )
-        assert "business_profiles" in catalog
-        assert "individual_profiles" in catalog
-        assert len(catalog["business_profiles"]) >= 1
-        assert len(catalog["individual_profiles"]) >= 1
+    def test_curated_yamls_load(self):
+        for name in ["harry_potter", "superheroes", "seinfeld"]:
+            catalog = yaml.safe_load(
+                (_SEEDS_DIR / f"{name}.yaml").read_text()
+            )
+            assert "business_profiles" in catalog
+            assert "individual_profiles" in catalog
+            assert len(catalog["business_profiles"]) >= 50
 
-    def test_profiles_have_required_fields(self):
-        catalog = yaml.safe_load(
-            (_SEEDS_DIR / "seed_catalog.yaml").read_text()
+    def test_industry_templates_load(self):
+        templates = yaml.safe_load(
+            (_SEEDS_DIR / "industry_templates.yaml").read_text()
         )
-        for profile in catalog["business_profiles"]:
-            assert "name" in profile, f"Business profile missing 'name': {profile}"
-        for profile in catalog["individual_profiles"]:
-            assert "first_name" in profile, f"Individual profile missing 'first_name': {profile}"
-            assert "last_name" in profile, f"Individual profile missing 'last_name': {profile}"
+        for key in ["tech", "government", "payroll", "manufacturing", "property_management", "construction"]:
+            assert key in templates, f"Missing industry vertical: {key}"
+            assert len(templates[key]["company_patterns"]) >= 5
