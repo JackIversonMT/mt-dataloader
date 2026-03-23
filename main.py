@@ -140,6 +140,7 @@ class _SessionState:
     skip_refs: set[str] = field(default_factory=set)
     created_at: float = field(default_factory=time.time)
     flow_ir: list[FlowIR] | None = None
+    original_funds_flows: list[Any] | None = None
     generation_recipe: dict | None = None
     working_config_json: str | None = None
     mermaid_diagrams: list[str] | None = None
@@ -590,6 +591,7 @@ async def validate(
         reconciliation=reconciliation,
         skip_refs=skip_refs,
         flow_ir=flow_irs,
+        original_funds_flows=original_funds_flows,
         mermaid_diagrams=mermaid_diagrams,
         working_config_json=working_config_json,
     )
@@ -771,6 +773,7 @@ async def revalidate(
         reconciliation=reconciliation,
         skip_refs=skip_refs,
         flow_ir=flow_irs_reval,
+        original_funds_flows=original_funds_flows_reval,
         mermaid_diagrams=mermaid_diagrams_reval,
         working_config_json=session.working_config_json,
     )
@@ -1090,8 +1093,28 @@ async def flows_page(request: Request):
         diagnostics = compile_diagnostics(session.flow_ir)
 
     flow_summaries = []
+    orig_flows = session.original_funds_flows or []
     if session.flow_ir:
         for i, ir in enumerate(session.flow_ir):
+            optional_groups: list[dict] = []
+            amount_steps: list[dict] = []
+            if i < len(orig_flows):
+                fc = orig_flows[i]
+                for og in fc.optional_groups:
+                    optional_groups.append({
+                        "label": og.label,
+                        "trigger": og.trigger,
+                        "step_count": len(og.steps),
+                        "step_types": list({s.type for s in og.steps}),
+                    })
+                for s in fc.steps:
+                    if s.amount is not None:
+                        amount_steps.append({
+                            "step_id": s.step_id,
+                            "type": s.type,
+                            "amount": s.amount,
+                        })
+
             flow_summaries.append({
                 "index": i,
                 "flow_ref": ir.flow_ref,
@@ -1101,6 +1124,11 @@ async def flows_page(request: Request):
                 "step_count": len(ir.steps),
                 "status": compute_flow_status(ir),
                 "account_deltas": flow_account_deltas(ir),
+                "optional_groups": optional_groups,
+                "amount_steps": amount_steps,
+                "has_instance_resources": bool(
+                    i < len(orig_flows) and orig_flows[i].instance_resources
+                ),
             })
 
     import seed_loader

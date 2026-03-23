@@ -13,8 +13,8 @@
     {% include "partials/diagnostics_bar.html" %}
 
     {% if flow_summaries %}
-    <div class="flow-list">
-        {% for fs in flow_summaries %}
+    {% for fs in flow_summaries %}
+    <div class="flow-section">
         <div class="flow-card">
             <div class="flow-card-header">
                 <span class="flow-ref">{{ fs.trace_value }}</span>
@@ -37,26 +37,27 @@
                 {% endfor %}
             </div>
             {% endif %}
-            <div style="margin-top: 8px;">
+            <div style="margin-top: 8px; display: flex; gap: 8px;">
                 <a href="/flows/view/{{ fs.index }}?session_token={{ session_token }}" class="btn btn-sm btn-outline">
                     View Detail
                 </a>
             </div>
         </div>
-        {% endfor %}
+
+        {% if loop.index0 < mermaid_diagrams|length %}
+            {% set mermaid_id = loop.index0 %}
+            {% set mermaid_diagram = mermaid_diagrams[loop.index0] %}
+            {% set mermaid_label = fs.trace_value %}
+            {% include "partials/mermaid_accordion.html" %}
+        {% endif %}
+
+        {% set flow_idx = loop.index0 %}
+        {% include "partials/scenario_builder.html" %}
     </div>
+    {% endfor %}
     {% else %}
     <p class="empty-state">No fund flows in this configuration.</p>
     {% endif %}
-
-    {% for diagram in mermaid_diagrams %}
-        {% set mermaid_id = loop.index0 %}
-        {% set mermaid_diagram = diagram %}
-        {% set mermaid_label = flow_summaries[loop.index0].trace_value if flow_summaries else "" %}
-        {% include "partials/mermaid_accordion.html" %}
-    {% endfor %}
-
-    {% include "partials/scenario_builder.html" %}
 
     <details class="json-editor-panel">
         <summary>View / Edit JSON Config</summary>
