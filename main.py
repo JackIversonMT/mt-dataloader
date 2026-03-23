@@ -1114,8 +1114,12 @@ async def _parse_and_compile_recipe(
             status_code=422,
         )
 
+    base = session.config.model_copy()
+    if session.original_funds_flows:
+        base.funds_flows = list(session.original_funds_flows)
+
     try:
-        compiled, diagrams = generate_from_recipe(recipe, base_config=session.config)
+        compiled, diagrams = generate_from_recipe(recipe, base_config=base)
     except (ValueError, KeyError) as e:
         return JSONResponse(
             content={"error": "Generation failed", "detail": str(e)},
