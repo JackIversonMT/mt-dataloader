@@ -882,12 +882,44 @@ def maybe_compile(
     """If funds_flows is populated, compile to FlowIR and emit back into
     the config's resource sections.  Returns (compiled_config, flow_irs).
     flow_irs is None when no funds_flows were present.
+
+    Flows with ``instance_resources`` are expanded for a single default
+    instance (0000) so they work without the generation pipeline.
     """
     if not config.funds_flows:
         return config, None
 
-    flow_irs = compile_flows(config.funds_flows, config)
-    emitted = emit_dataloader_config(flow_irs, base_config=config)
+    extra_resources: dict[str, list[dict]] = {}
+    expanded_flows: list[FundsFlowConfig] = []
+
+    for flow in config.funds_flows:
+        if flow.instance_resources:
+            default_profile = {
+                "first_name": "Demo",
+                "last_name": "User",
+                "business_name": "Demo Corp",
+                "industry": "fintech",
+                "country": "US",
+            }
+            mapping = {"instance": "0000", "ref": flow.ref, **default_profile}
+
+            expanded_ir = _expand_instance_resources(
+                flow.instance_resources, 0, default_profile,
+            )
+            for section, items in expanded_ir.items():
+                extra_resources.setdefault(section, []).extend(items)
+
+            flow_dict = flow.model_dump()
+            flow_dict.pop("instance_resources", None)
+            flow_dict = deep_format_map(flow_dict, mapping)
+            expanded_flows.append(FundsFlowConfig.model_validate(flow_dict))
+        else:
+            expanded_flows.append(flow)
+
+    flow_irs = compile_flows(expanded_flows, config)
+    emitted = emit_dataloader_config(
+        flow_irs, base_config=config, extra_resources=extra_resources,
+    )
     return emitted, flow_irs
 
 
