@@ -40,6 +40,7 @@ patterns:
     steps:
       - step_id: "deposit"
         type: "incoming_payment_detail"
+        payment_type: "ach"
         direction: "credit"
         amount: 50000
         internal_account_id: "@actor:ops_account"
@@ -65,6 +66,7 @@ patterns:
     steps:
       - step_id: "buyer_pay_in"
         type: "payment_order"
+        payment_type: "ach"
         direction: "debit"
         amount: 100000
       - step_id: "hold_entry"
@@ -73,6 +75,7 @@ patterns:
         description: "Record platform hold"
       - step_id: "seller_payout"
         type: "payment_order"
+        payment_type: "ach"
         direction: "credit"
         depends_on: ["hold_entry"]
         amount: 95000

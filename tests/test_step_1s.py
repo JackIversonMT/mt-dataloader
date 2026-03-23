@@ -286,18 +286,31 @@ class TestMaybeCompile:
         assert result is config
         assert len(result.ledgers) == 1
 
-    def test_raises_not_implemented_with_flows(self):
+    def test_compiles_with_flows(self):
+        """Step 2s replaced the NotImplementedError stub with a working
+        compiler.  A minimal flow now compiles (or fails validation),
+        but never raises NotImplementedError."""
         config = DataLoaderConfig(
             funds_flows=[
                 {
                     "ref": "f1",
                     "pattern_type": "deposit",
-                    "steps": [{"step_id": "s1", "type": "incoming_payment_detail"}],
+                    "steps": [
+                        {
+                            "step_id": "s1",
+                            "type": "incoming_payment_detail",
+                            "payment_type": "ach",
+                            "direction": "credit",
+                            "amount": 1000,
+                            "internal_account_id": "$ref:internal_account.ops",
+                        }
+                    ],
                 }
             ],
         )
-        with pytest.raises(NotImplementedError):
-            maybe_compile(config)
+        result = maybe_compile(config)
+        assert result.funds_flows == []
+        assert len(result.incoming_payment_details) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -336,13 +349,16 @@ class TestFundsFlowDemo:
         assert config.funds_flows[0].ref == "simple_deposit"
         assert len(config.funds_flows[0].steps) == 2
 
-    def test_demo_hits_not_implemented(self):
+    def test_demo_compiles_end_to_end(self):
+        """Step 2s: the demo JSON now compiles instead of raising."""
         demo = _EXAMPLE_DIR / "funds_flow_demo.json"
         if not demo.exists():
             pytest.skip("funds_flow_demo.json not yet created")
         config = DataLoaderConfig.model_validate_json(demo.read_bytes())
-        with pytest.raises(NotImplementedError):
-            maybe_compile(config)
+        result = maybe_compile(config)
+        assert result.funds_flows == []
+        assert len(result.incoming_payment_details) == 1
+        assert len(result.ledger_transactions) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -71,6 +71,10 @@ __all__ = [
     "ReversalConfig",
     "CategoryMembershipConfig",
     "NestedCategoryConfig",
+    # Funds Flow DSL
+    "FundsFlowStepConfig",
+    "FundsFlowScaleConfig",
+    "FundsFlowConfig",
     # Top-level config
     "DataLoaderConfig",
     # Internal types
@@ -1039,6 +1043,10 @@ class FundsFlowStepConfig(BaseModel):
     ``extra="allow"`` because step-type-specific fields (e.g.
     ``internal_account_id`` for IPD, ``payment_order_id`` for reversal)
     vary by type.  The compiler validates required fields per type.
+
+    **Compiler note:** type-specific fields live in ``self.model_extra``,
+    not as direct attributes.  Use ``model_dump()`` (which includes extras)
+    or ``model_extra.get()`` — never direct attribute access.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -1195,7 +1203,7 @@ class DataLoaderConfig(BaseModel):
     def _refs_are_unique_within_type(self) -> DataLoaderConfig:
         """Catch duplicate refs before the engine even sees them."""
         seen: dict[str, str] = {}
-        for section_name in self.model_fields:
+        for section_name in type(self).model_fields:
             items = getattr(self, section_name)
             for item in items:
                 if not hasattr(item, "resource_type"):

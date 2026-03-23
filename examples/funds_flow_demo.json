@@ -45,6 +45,7 @@
         {
           "step_id": "deposit",
           "type": "incoming_payment_detail",
+          "payment_type": "ach",
           "direction": "credit",
           "amount": 50000,
           "internal_account_id": "@actor:ops_account"

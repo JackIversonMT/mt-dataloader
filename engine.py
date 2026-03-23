@@ -198,7 +198,7 @@ def typed_ref_for(config: _BaseResourceConfig) -> str:
 
 def all_resources(config: DataLoaderConfig) -> Iterator[_BaseResourceConfig]:
     """Yield all resource configs from all sections in declaration order."""
-    for field_name in config.model_fields:
+    for field_name in type(config).model_fields:
         value = getattr(config, field_name)
         if not isinstance(value, list):
             continue
