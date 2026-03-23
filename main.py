@@ -964,15 +964,14 @@ def _count_resources(config: DataLoaderConfig) -> dict[str, int]:
 
 async def _parse_and_compile_recipe(
     request: Request,
-) -> tuple[str, _SessionState, GenerationRecipeV1, DataLoaderConfig, list[str]]:
+) -> tuple[str, _SessionState, GenerationRecipeV1, DataLoaderConfig, list[str]] | JSONResponse:
     """Shared parse → compile helper for generation endpoints.
 
-    Returns (session_token, session, recipe, compiled_config, mermaid_diagrams).
-    Raises JSONResponse on error.
+    Returns the 5-tuple on success, or a JSONResponse on error.
     """
     session_token, session = _get_session(request)
     if not session:
-        raise JSONResponse(
+        return JSONResponse(
             content={"error": "Session not found. Please validate a config first."},
             status_code=401,
         )
@@ -981,7 +980,7 @@ async def _parse_and_compile_recipe(
         body = await request.body()
         recipe = GenerationRecipeV1.model_validate_json(body)
     except ValidationError as e:
-        raise JSONResponse(
+        return JSONResponse(
             content={"error": "Invalid recipe", "detail": _format_validation_errors(e)},
             status_code=422,
         )
@@ -989,7 +988,7 @@ async def _parse_and_compile_recipe(
     try:
         compiled, diagrams = generate_from_recipe(recipe, base_config=session.config)
     except (ValueError, KeyError) as e:
-        raise JSONResponse(
+        return JSONResponse(
             content={"error": "Generation failed", "detail": str(e)},
             status_code=400,
         )
@@ -1000,10 +999,10 @@ async def _parse_and_compile_recipe(
 @app.post("/api/flows/generate-preview")
 async def generate_preview(request: Request):
     """Return compile stats + Mermaid diagrams without executing."""
-    try:
-        session_token, session, recipe, compiled, diagrams = await _parse_and_compile_recipe(request)
-    except JSONResponse as resp:
-        return resp
+    result = await _parse_and_compile_recipe(request)
+    if isinstance(result, JSONResponse):
+        return result
+    session_token, session, recipe, compiled, diagrams = result
 
     counts = _count_resources(compiled)
     total = sum(counts.values())
@@ -1026,10 +1025,10 @@ async def generate_preview(request: Request):
 @app.post("/api/flows/recipe-to-working-config")
 async def recipe_to_working_config(request: Request):
     """Compile recipe into a working config and store in session."""
-    try:
-        session_token, session, recipe, compiled, diagrams = await _parse_and_compile_recipe(request)
-    except JSONResponse as resp:
-        return resp
+    result = await _parse_and_compile_recipe(request)
+    if isinstance(result, JSONResponse):
+        return result
+    session_token, session, recipe, compiled, diagrams = result
 
     session.config = compiled
     config_json_text = compiled.model_dump_json(indent=2, exclude_none=True)
@@ -1053,10 +1052,10 @@ async def recipe_to_working_config(request: Request):
 @app.post("/api/flows/generate-execute")
 async def generate_execute(request: Request):
     """Compile recipe and feed directly into the execution pipeline."""
-    try:
-        session_token, session, recipe, compiled, diagrams = await _parse_and_compile_recipe(request)
-    except JSONResponse as resp:
-        return resp
+    result = await _parse_and_compile_recipe(request)
+    if isinstance(result, JSONResponse):
+        return result
+    session_token, session, recipe, compiled, diagrams = result
 
     session.config = compiled
     session.mermaid_diagrams = diagrams

@@ -1151,10 +1151,18 @@ a.doc-link:hover .sandbox-badge {
     border: 1px solid var(--border); border-radius: var(--radius);
     padding: 20px; margin: 20px 0; background: var(--bg);
 }
-.scenario-builder h3 { margin: 0 0 12px; font-size: 1rem; }
+.scenario-builder h3 { margin: 0 0 16px; font-size: 1rem; }
+.scenario-section {
+    margin-bottom: 16px;
+}
+.scenario-section-label {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    color: var(--text-muted); letter-spacing: 0.04em;
+    margin-bottom: 8px;
+}
 .scenario-actions { display: flex; gap: 8px; margin-top: 16px; }
 .canned-commands {
-    display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+    display: flex; gap: 8px; flex-wrap: wrap;
 }
 .gen-preview-stats {
     margin-top: 12px; padding: 12px; background: var(--surface);

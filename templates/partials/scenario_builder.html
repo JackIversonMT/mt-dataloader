@@ -1,76 +1,113 @@
 {% if flow_summaries %}
 <div class="scenario-builder">
     <h3>Generate at Scale</h3>
-    <div class="form-row">
-        <div class="form-group">
-            <label>Flow Pattern</label>
-            <select id="gen-flow-ref">
-                {% for fs in flow_summaries %}
-                <option value="{{ fs.flow_ref }}">{{ fs.flow_ref }} ({{ fs.pattern_type }})</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Seed Dataset</label>
-            <select id="gen-seed-dataset">
-                {% if seed_datasets %}
-                {% set current_tier = namespace(value='') %}
-                {% for ds in seed_datasets %}
-                {% if ds.tier != current_tier.value %}
-                {% if current_tier.value %}</optgroup>{% endif %}
-                {% if ds.tier == 'faker' %}<optgroup label="General">
-                {% elif ds.tier == 'industry' %}<optgroup label="Industry Verticals">
-                {% elif ds.tier == 'curated' %}<optgroup label="Pop Culture">
-                {% endif %}
-                {% set current_tier.value = ds.tier %}
-                {% endif %}
-                <option value="{{ ds.name }}"{% if ds.name == 'standard' %} selected{% endif %}>{{ ds.label }}</option>
-                {% endfor %}
-                {% if current_tier.value %}</optgroup>{% endif %}
-                {% else %}
-                <option value="standard" selected>Standard</option>
-                {% endif %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Instances</label>
-            <input type="number" id="gen-instances" value="100" min="1" max="5000">
-        </div>
-        <div class="form-group">
-            <label>Seed</label>
-            <input type="number" id="gen-seed" value="424242">
+
+    <div class="scenario-section">
+        <div class="scenario-section-label">Pattern & Scale</div>
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Flow Pattern</label>
+                <select id="gen-flow-ref">
+                    {% for fs in flow_summaries %}
+                    <option value="{{ fs.flow_ref }}">{{ fs.flow_ref }} ({{ fs.pattern_type }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Instances</label>
+                <input type="number" id="gen-instances" value="10" min="1" max="5000">
+            </div>
+            <div class="form-group">
+                <label>RNG Seed</label>
+                <input type="number" id="gen-seed" value="424242">
+            </div>
         </div>
     </div>
-    <div class="form-row">
-        <div class="form-group">
-            <label>Edge case freq</label>
-            <input type="number" id="gen-edge" value="0.0" min="0" max="1" step="0.01">
+
+    <div class="scenario-section">
+        <div class="scenario-section-label">Seed Profiles</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Businesses</label>
+                <select id="gen-biz-dataset">
+                    {% if seed_datasets %}
+                    {% set current_tier = namespace(value='') %}
+                    {% for ds in seed_datasets %}
+                    {% if ds.tier != current_tier.value %}
+                    {% if current_tier.value %}</optgroup>{% endif %}
+                    {% if ds.tier == 'faker' %}<optgroup label="General">
+                    {% elif ds.tier == 'industry' %}<optgroup label="Industry Verticals">
+                    {% elif ds.tier == 'curated' %}<optgroup label="Pop Culture">
+                    {% endif %}
+                    {% set current_tier.value = ds.tier %}
+                    {% endif %}
+                    <option value="{{ ds.name }}"{% if ds.name == 'standard' %} selected{% endif %}>{{ ds.label }}</option>
+                    {% endfor %}
+                    {% if current_tier.value %}</optgroup>{% endif %}
+                    {% else %}
+                    <option value="standard" selected>Standard</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Individuals</label>
+                <select id="gen-indiv-dataset">
+                    {% if seed_datasets %}
+                    {% set current_tier = namespace(value='') %}
+                    {% for ds in seed_datasets %}
+                    {% if ds.tier != current_tier.value %}
+                    {% if current_tier.value %}</optgroup>{% endif %}
+                    {% if ds.tier == 'faker' %}<optgroup label="General">
+                    {% elif ds.tier == 'industry' %}<optgroup label="Industry Verticals">
+                    {% elif ds.tier == 'curated' %}<optgroup label="Pop Culture">
+                    {% endif %}
+                    {% set current_tier.value = ds.tier %}
+                    {% endif %}
+                    <option value="{{ ds.name }}"{% if ds.name == 'standard' %} selected{% endif %}>{{ ds.label }}</option>
+                    {% endfor %}
+                    {% if current_tier.value %}</optgroup>{% endif %}
+                    {% else %}
+                    <option value="standard" selected>Standard</option>
+                    {% endif %}
+                </select>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Amount variance %</label>
-            <input type="number" id="gen-variance" value="0.0" min="0" max="100" step="0.5">
-        </div>
-        <div class="form-group">
-            <label>Staged count</label>
-            <input type="number" id="gen-staged" value="0" min="0">
-        </div>
-        <div class="form-group">
-            <label>Staged selection</label>
-            <select id="gen-staged-sel">
-                <option value="first">First N</option>
-                <option value="random">Random N</option>
-            </select>
+    </div>
+
+    <div class="scenario-section">
+        <div class="scenario-section-label">Variation</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Edge case frequency</label>
+                <input type="number" id="gen-edge" value="0.0" min="0" max="1" step="0.01">
+            </div>
+            <div class="form-group">
+                <label>Amount variance %</label>
+                <input type="number" id="gen-variance" value="0.0" min="0" max="100" step="0.5">
+            </div>
+            <div class="form-group">
+                <label>Staged count</label>
+                <input type="number" id="gen-staged" value="0" min="0">
+            </div>
+            <div class="form-group">
+                <label>Staged selection</label>
+                <select id="gen-staged-sel">
+                    <option value="first">First N</option>
+                    <option value="random">Random N</option>
+                </select>
+            </div>
         </div>
     </div>
 
     <div class="canned-commands">
-        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0, 0, 0)">Scale to 100</button>
-        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0.05, 0, 0)">100 + 5% edges</button>
-        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0.05, 5, 1)">100 + edges + variance + 1 staged</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset(10, 0, 0, 0)">10 instances</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0, 0, 0)">100 instances</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0.05, 5, 0)">100 + 5% edges + variance</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset(100, 0.05, 5, 1)">100 + edges + 1 staged</button>
     </div>
 
     <div class="scenario-actions">
-        <button class="btn btn-secondary" onclick="generatePreview()">Generate Preview</button>
+        <button class="btn btn-secondary" onclick="generatePreview()">Preview</button>
         <button class="btn btn-primary" onclick="applyToConfig()">Apply to Config</button>
     </div>
 
@@ -79,17 +116,22 @@
 
 <script>
 function buildRecipe() {
-    return {
+    var bizDs = document.getElementById('gen-biz-dataset').value;
+    var indivDs = document.getElementById('gen-indiv-dataset').value;
+    var recipe = {
         version: "v1",
         flow_ref: document.getElementById('gen-flow-ref').value,
         instances: parseInt(document.getElementById('gen-instances').value),
         seed: parseInt(document.getElementById('gen-seed').value),
-        seed_dataset: document.getElementById('gen-seed-dataset').value,
+        seed_dataset: "standard",
         edge_case_frequency: parseFloat(document.getElementById('gen-edge').value),
         amount_variance_pct: parseFloat(document.getElementById('gen-variance').value),
         staged_count: parseInt(document.getElementById('gen-staged').value),
         staged_selection: document.getElementById('gen-staged-sel').value,
     };
+    if (bizDs !== 'standard') recipe.business_dataset = bizDs;
+    if (indivDs !== 'standard') recipe.individual_dataset = indivDs;
+    return recipe;
 }
 
 function setPreset(instances, edge, variance, staged) {
@@ -112,7 +154,7 @@ async function generatePreview() {
         var data = await resp.json();
         var el = document.getElementById('gen-preview-result');
         if (data.error) {
-            el.innerHTML = '<div class="error-alert"><h3>Error</h3><p>' + data.error + '</p></div>';
+            el.innerHTML = '<div class="error-alert"><h3>Error</h3><p>' + data.error + (data.detail ? '<br>' + data.detail : '') + '</p></div>';
             return;
         }
         var html = '<div class="gen-preview-stats">' +
@@ -125,7 +167,7 @@ async function generatePreview() {
         html += '</div>';
         el.innerHTML = html;
     } finally {
-        btn.disabled = false; btn.textContent = 'Generate Preview';
+        btn.disabled = false; btn.textContent = 'Preview';
     }
 }
 
@@ -142,7 +184,7 @@ async function applyToConfig() {
         var data = await resp.json();
         if (data.error) {
             document.getElementById('gen-preview-result').innerHTML =
-                '<div class="error-alert"><h3>Error</h3><p>' + data.error + '</p></div>';
+                '<div class="error-alert"><h3>Error</h3><p>' + data.error + (data.detail ? '<br>' + data.detail : '') + '</p></div>';
             return;
         }
         window.location.href = '/flows?session_token={{ session_token }}';

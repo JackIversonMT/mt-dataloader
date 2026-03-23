@@ -431,8 +431,13 @@ def generate_from_recipe(
             f"Available: {available}"
         )
 
-    biz_profiles, indiv_profiles = seed_loader.generate_profiles(
-        recipe.seed_dataset, recipe.instances, recipe.seed,
+    biz_ds = recipe.business_dataset or recipe.seed_dataset
+    indiv_ds = recipe.individual_dataset or recipe.seed_dataset
+    biz_profiles, _ = seed_loader.generate_profiles(
+        biz_ds, recipe.instances, recipe.seed,
+    )
+    _, indiv_profiles = seed_loader.generate_profiles(
+        indiv_ds, recipe.instances, recipe.seed,
     )
 
     staged_instances = select_staged_instances(

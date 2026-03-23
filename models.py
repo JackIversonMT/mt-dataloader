@@ -1237,7 +1237,15 @@ class GenerationRecipeV1(BaseModel):
     seed: int
     seed_dataset: str = Field(
         default="standard",
-        description="Seed dataset name for profile substitution",
+        description="Default seed dataset (used when per-actor fields are omitted)",
+    )
+    business_dataset: str | None = Field(
+        default=None,
+        description="Seed dataset for business profiles (overrides seed_dataset)",
+    )
+    individual_dataset: str | None = Field(
+        default=None,
+        description="Seed dataset for individual profiles (overrides seed_dataset)",
     )
     edge_case_frequency: float = Field(
         default=0.0, ge=0.0, le=1.0,
