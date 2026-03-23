@@ -15,7 +15,7 @@ remaining files as **Knowledge files** that the app retrieves on demand:
 
 | Instructions field | Knowledge files (upload all) |
 |---|---|
-| `chatgpt_app_instructions.md` | `decision_rubrics.md`, `naming_conventions.md`, `ordering_rules.md`, `metadata_patterns.md`, `generation_profiles.md`, `validation_fixes.md`, JSON schema from `GET /api/schema`, `examples/*.json` (incl. `tradeify.json` for ledger patterns) |
+| `chatgpt_app_instructions.md` | `decision_rubrics.md`, `naming_conventions.md`, `ordering_rules.md`, `metadata_patterns.md`, `generation_profiles.md`, `validation_fixes.md`, JSON schema from `GET /api/schema`, `examples/*.json` (incl. `tradeify.json` for ledger patterns, `funds_flow_demo.json` for lifecycle DSL patterns) |
 
 The instructions contain behavioral guidance, all 17 generation rules, output
 format, connection capabilities, and the validation loop — everything the LLM
