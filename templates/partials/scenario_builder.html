@@ -176,20 +176,6 @@
             </div>
         </div>
 
-        <div class="preset-bar">
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(10, 0, 0, 0, 0, {})">10 instances</button>
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, 0, {})">100 instances</button>
-            {% if fs.optional_groups %}
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 5, 0, 0, 0, {})">100 + 5 edges</button>
-            {% endif %}
-            {% if fs.amount_steps %}
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, -5, 5, 0, {})">100 + ±5% variance</button>
-            {% endif %}
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, {% if fs.optional_groups %}5{% else %}0{% endif %}, {% if fs.amount_steps %}-5{% else %}0{% endif %}, {% if fs.amount_steps %}5{% else %}0{% endif %}, 1, {})">100 + 1 staged</button>
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, 0, {spread_days:30})">30d spread</button>
-            <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, 0, {spread_days:90})">90d spread</button>
-        </div>
-
         <div class="accordion-footer">
             <button class="btn btn-secondary btn-sm" onclick="genPreview{{ flow_idx }}()">Preview</button>
             <button class="btn btn-primary btn-sm" onclick="genApply{{ flow_idx }}()">Apply to Config</button>
@@ -472,22 +458,6 @@
             for (var k = rows.length - 1; k > 0; k--) rows[k].remove();
         }
     }
-
-    window['setPreset' + idx] = function(instances, edge, varMin, varMax, staged, timing) {
-        el('gen-instances').value = instances;
-        var edgeInputs = document.querySelectorAll('#scenario-builder-' + idx + ' .edge-case-count-input');
-        edgeInputs.forEach(function(input) { input.value = edge; input.max = instances; });
-        if (el('gen-variance-min')) el('gen-variance-min').value = varMin;
-        if (el('gen-variance-max')) el('gen-variance-max').value = varMax;
-        if (staged > 0) {
-            resetStagingRules([{count: staged, selection: 'happy_path'}]);
-        } else {
-            resetStagingRules([]);
-        }
-        timing = timing || {};
-        el('gen-timing-spread').value = timing.spread_days || 0;
-        window['updateAmountRanges' + idx]();
-    };
 
     window['genPreview' + idx] = async function() {
         var btn = document.querySelector('#scenario-builder-' + idx + ' .btn-secondary');

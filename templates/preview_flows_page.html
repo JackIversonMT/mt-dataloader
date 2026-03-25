@@ -24,29 +24,13 @@
 {% endblock %}
 
 {% block page_subtitle %}
-<div class="page-header-subtitle">Review resources grouped by flow before execution</div>
+<div class="page-header-subtitle">
+    {{ resource_count }} resources across {{ flow_groups|length }} group{{ 's' if flow_groups|length != 1 }}.
+    {{ deletable_count }} deletable, {{ non_deletable_count }} persistent.
+</div>
 {% endblock %}
 
 {% block content %}
-
-    <div class="stats-bar">
-        <div class="stat">
-            <span class="stat-value">{{ resource_count }}</span>
-            <span class="stat-label">resources</span>
-        </div>
-        <div class="stat">
-            <span class="stat-value">{{ flow_groups|length }}</span>
-            <span class="stat-label">groups</span>
-        </div>
-        <div class="stat stat-deletable">
-            <span class="stat-value">{{ deletable_count }}</span>
-            <span class="stat-label">deletable</span>
-        </div>
-        <div class="stat stat-persistent">
-            <span class="stat-value">{{ non_deletable_count }}</span>
-            <span class="stat-label">persistent</span>
-        </div>
-    </div>
 
     <div class="mt-tabs" id="preview-flow-tabs">
         <div class="mt-tabs__row">
@@ -130,7 +114,7 @@
     </div>
     {% endmacro %}
 
-    <div class="tab-panel" id="pf-panel-flows">
+    <div class="tab-panel active" id="pf-panel-flows">
     {% for group in flow_groups %}
     {% if group.pattern_type == 'shared' %}
     {# --- Shared Infrastructure (collapsible, open by default) --- #}
@@ -240,7 +224,10 @@
 <script>
 function switchPfTab(panelId) {
     document.querySelectorAll('#pf-panel-flows, #pf-panel-discovery, #pf-panel-recon, #pf-panel-config').forEach(function(p) {
-        if (p) p.hidden = (p.id !== panelId);
+        if (!p) return;
+        var isActive = p.id === panelId;
+        p.hidden = !isActive;
+        p.classList.toggle('active', isActive);
     });
 }
 

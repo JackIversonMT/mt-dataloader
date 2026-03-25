@@ -23,30 +23,12 @@
             </div>
         </div>
         <div class="page-header-subtitle">
-            {{ resource_count }} resources in {{ batches|length }} batches.
-            {{ non_deletable_count }} persistent resource(s) cannot be deleted.
+            {{ resource_count }} resources in {{ batches|length }} batch{{ 'es' if batches|length != 1 }}.
+            {{ deletable_count }} deletable, {{ non_deletable_count }} persistent.
         </div>
     </div>
 </div>
 <div class="page-body">
-    <div class="stats-bar">
-        <div class="stat">
-            <span class="stat-value">{{ resource_count }}</span>
-            <span class="stat-label">resources</span>
-        </div>
-        <div class="stat">
-            <span class="stat-value">{{ batches|length }}</span>
-            <span class="stat-label">batches</span>
-        </div>
-        <div class="stat stat-deletable">
-            <span class="stat-value">{{ deletable_count }}</span>
-            <span class="stat-label">deletable</span>
-        </div>
-        <div class="stat stat-persistent">
-            <span class="stat-value">{{ non_deletable_count }}</span>
-            <span class="stat-label">persistent</span>
-        </div>
-    </div>
 
     <div class="mt-tabs" id="preview-tabs">
         <div class="mt-tabs__row">
@@ -69,7 +51,7 @@
         </div>
     </div>
 
-    <div class="tab-panel" id="preview-panel-resources">
+    <div class="tab-panel active" id="preview-panel-resources">
         {% include "partials/resource_table.html" %}
     </div>
 
@@ -112,7 +94,10 @@
 <script>
 function switchPreviewTab(panelId) {
     document.querySelectorAll('#preview-panel-resources, #preview-panel-discovery, #preview-panel-recon, #preview-panel-config').forEach(function(p) {
-        if (p) p.hidden = (p.id !== panelId);
+        if (!p) return;
+        var isActive = p.id === panelId;
+        p.hidden = !isActive;
+        p.classList.toggle('active', isActive);
     });
 }
 

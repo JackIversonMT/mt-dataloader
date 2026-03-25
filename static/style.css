@@ -214,6 +214,7 @@ body {
 }
 
 /* --- Buttons --- */
+/* Compound selectors (.btn.btn-*) needed to beat turbogrid reset (0,1,1) */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -226,17 +227,18 @@ body {
     cursor: pointer;
     transition: background 0.15s;
     text-decoration: none;
+    background-color: transparent;
 }
-.btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover { background: var(--primary-hover); }
-.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-.btn-secondary:hover { background: var(--border); }
-.btn-danger { background: var(--danger); color: white; }
-.btn-danger:hover { background: var(--danger-hover); }
-.btn-sm { padding: 6px 12px; font-size: 0.8rem; }
-.btn-xs { padding: 4px 8px; font-size: 0.72rem; }
-.btn-outline { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-.btn-outline:hover { background: var(--background-light); }
+.btn.btn-primary { background: var(--primary); color: white; }
+.btn.btn-primary:hover { background: var(--primary-hover); }
+.btn.btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn.btn-secondary:hover { background: var(--border); }
+.btn.btn-danger { background: var(--danger); color: white; }
+.btn.btn-danger:hover { background: var(--danger-hover); }
+.btn.btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+.btn.btn-xs { padding: 4px 8px; font-size: 0.72rem; }
+.btn.btn-outline { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn.btn-outline:hover { background: var(--border); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* --- Forms --- */
@@ -295,13 +297,6 @@ body {
     50% { opacity: 0.4; transform: scale(1.2); }
 }
 
-/* --- Stats bar --- */
-.stats-bar { display: flex; gap: 24px; margin: 20px 0; }
-.stat { text-align: center; }
-.stat-value { display: block; font-size: 1.5rem; font-weight: 700; }
-.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-.stat-deletable .stat-value { color: var(--status-created); }
-.stat-persistent .stat-value { color: var(--status-waiting); }
 
 /* --- Status dots --- */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }

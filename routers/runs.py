@@ -73,10 +73,14 @@ async def run_drawer(request: Request, run_id: str):
     """Return drawer partial for a single run."""
     templates = get_templates()
     runs_dir = Path(request.app.state.settings.runs_dir)
-    path = runs_dir / f"manifest_{run_id}.json"
+    path = runs_dir / f"{run_id}.json"
+    if not path.exists():
+        path = runs_dir / f"manifest_{run_id}.json"
     if not path.exists():
         path = next(
-            (p for p in runs_dir.glob("*.json") if run_id in p.name), None
+            (p for p in runs_dir.glob("*.json")
+             if p.stem == run_id or p.stem == f"manifest_{run_id}"),
+            None,
         )
     if not path or not path.exists():
         return templates.TemplateResponse(
@@ -92,10 +96,14 @@ async def run_drawer(request: Request, run_id: str):
 
 def _find_manifest(request: Request, run_id: str) -> RunManifest | None:
     runs_dir = Path(request.app.state.settings.runs_dir)
-    path = runs_dir / f"manifest_{run_id}.json"
+    path = runs_dir / f"{run_id}.json"
+    if not path.exists():
+        path = runs_dir / f"manifest_{run_id}.json"
     if not path.exists():
         path = next(
-            (p for p in runs_dir.glob("*.json") if run_id in p.name), None
+            (p for p in runs_dir.glob("*.json")
+             if p.stem == run_id or p.stem == f"manifest_{run_id}"),
+            None,
         )
     if not path or not path.exists():
         return None

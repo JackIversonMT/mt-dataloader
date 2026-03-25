@@ -135,7 +135,11 @@ def rebuild_correlation_index(runs_dir: str) -> int:
     count = 0
     runs_path = Path(runs_dir)
     for run_id in list_manifest_ids(runs_dir):
-        manifest = RunManifest.load(runs_path / f"{run_id}.json")
+        try:
+            manifest = RunManifest.load(runs_path / f"{run_id}.json")
+        except Exception as exc:
+            logger.warning("Skipping manifest {} during index rebuild: {}", run_id, exc)
+            continue
         for entry in manifest.resources_created:
             _correlation_index[entry.created_id] = (run_id, entry.typed_ref)
             count += 1
@@ -749,7 +753,13 @@ async def webhook_drawer(request: Request, webhook_id: str):
                 {"wh": wh_dict},
             )
 
-    raise HTTPException(status_code=404, detail="Webhook not found")
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "partials/empty_state.html",
+        {"empty_title": "Webhook not found", "empty_description": f"No data for webhook {webhook_id[:16]}…"},
+        status_code=404,
+    )
 
 
 @router.post("/api/webhooks/test", include_in_schema=False)

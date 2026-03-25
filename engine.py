@@ -448,9 +448,9 @@ class RunManifest:
         manifest = cls(
             run_id=run_id,
             config_hash=data.get("config_hash", ""),
-            started_at=data["started_at"],
+            started_at=data.get("started_at", ""),
             completed_at=data.get("completed_at"),
-            status=data["status"],
+            status=data.get("status", "unknown"),
             generation_recipe=data.get("generation_recipe"),
             compile_id=data.get("compile_id"),
             seed_version=data.get("seed_version"),

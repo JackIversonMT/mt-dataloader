@@ -25,8 +25,8 @@
 
 {% block page_subtitle %}
 <div class="page-header-subtitle">
-    {{ resource_count }} resources in {{ batches|length }} batches.
-    {{ non_deletable_count }} persistent resource(s) cannot be deleted.
+    {{ resource_count }} resources in {{ batches|length }} batch{{ 'es' if batches|length != 1 }}.
+    {{ deletable_count }} deletable, {{ non_deletable_count }} persistent.
 </div>
 {% endblock %}
 

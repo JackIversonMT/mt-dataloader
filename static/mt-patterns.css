@@ -431,13 +431,6 @@
   flex-shrink: 0;
 }
 
-.preset-bar {
-  display: flex;
-  gap: var(--mt-spacing-2);
-  flex-wrap: wrap;
-  padding-top: var(--mt-spacing-2);
-}
-
 .accordion-footer {
   display: flex;
   align-items: center;
