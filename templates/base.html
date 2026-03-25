@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/turbogrid/turbogrid.css">
+    <link rel="stylesheet" href="/static/mt-patterns.css">
     <link rel="stylesheet" href="/static/style.css?v={{ css_version }}">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
@@ -53,58 +55,52 @@
 </head>
 <body>
     <div class="app-shell">
-        <aside class="sidebar" id="application-sidebar">
+        <aside class="sidebar thin-scrollbar" id="application-sidebar">
             <a href="/setup" class="sidebar-logo">
                 <img src="/static/mt-symbol.svg" alt="MT" width="20" height="20">
                 <span>Dataloader</span>
             </a>
-            <div class="sidebar-org" id="sidebar-org"></div>
             <nav class="sidebar-nav">
                 <a href="/setup" class="sidebar-link {% block nav_setup %}{% endblock %}">Setup</a>
                 <a href="/flows" class="sidebar-link {% block nav_flows %}{% endblock %}">Fund Flows</a>
                 <a href="/runs" class="sidebar-link {% block nav_runs %}{% endblock %}">Runs</a>
                 <a href="/listen" class="sidebar-link {% block nav_listen %}{% endblock %}">Listener</a>
             </nav>
-            <div class="sidebar-connection" id="sidebar-connection">
-                <div class="conn-status">
-                    <span class="conn-org" id="conn-org-label"></span>
-                </div>
-                <button class="btn btn-xs btn-outline conn-edit-btn"
-                        hx-get="/api/connection-editor"
-                        hx-target="#conn-editor-modal"
-                        hx-swap="innerHTML"
-                        hx-on:htmx:after-settle="document.getElementById('conn-editor-modal').style.display='block'"
-                        style="display:none;" id="conn-edit-btn">Change</button>
-            </div>
-            <div id="conn-editor-modal" style="display:none;"></div>
-            <div class="sidebar-footer">
-                <span class="cred-status" id="cred-status"></span>
-            </div>
+            <div class="sidebar-footer" id="sidebar-org"></div>
         </aside>
-        <main id="content">
-            {% block content %}{% endblock %}
+        <main id="content" class="turbogrid">
+            {% block page_header %}
+            <div class="page-header-container">
+                {% block page_breadcrumbs %}{% endblock %}
+                <div class="page-header-body{% block header_body_class %}{% endblock %}">
+                    <div class="page-header-title-row">
+                        <div class="page-header-left">
+                            <h1>{% block title_display %}{% endblock %}</h1>
+                            {% block title_slot %}{% endblock %}
+                        </div>
+                        <div class="page-header-right">
+                            {% block header_actions %}{% endblock %}
+                        </div>
+                    </div>
+                    {% block page_subtitle %}{% endblock %}
+                    {% block page_tabs %}{% endblock %}
+                </div>
+            </div>
+            {% endblock %}
+            <div class="page-body">
+                {% block content %}{% endblock %}
+            </div>
         </main>
     </div>
     <script>
     (function() {
         var orgEl = document.getElementById("sidebar-org");
-        var credEl = document.getElementById("cred-status");
         var orgName = sessionStorage.getItem("mt_org_name");
         var orgId = sessionStorage.getItem("mt_org_id");
         if (orgName || orgId) {
             orgEl.innerHTML =
                 '<div class="org-name">' + (orgName || orgId) + '</div>' +
                 (orgName && orgId ? '<div class="org-id">' + orgId + '</div>' : '');
-        }
-        if (orgId) {
-            credEl.textContent = orgId;
-            credEl.title = "Org ID stored for this session";
-        }
-        var connOrg = document.getElementById("conn-org-label");
-        var connBtn = document.getElementById("conn-edit-btn");
-        if (orgName || orgId) {
-            connOrg.textContent = orgName || orgId;
-            connBtn.style.display = "inline-block";
         }
         var token = new URLSearchParams(window.location.search).get('session_token');
         if (token) {

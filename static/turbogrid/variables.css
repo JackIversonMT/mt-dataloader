@@ -1,0 +1,102 @@
+/*
+ * Turbogrid default design tokens.
+ * Override any of these in your app by redeclaring them on .turbogrid.
+ */
+.turbogrid {
+  /* Background */
+  --background-default: #fff;
+  --background-light: #f7f7f6;
+  --background-dark: #303030;
+
+  /* Buttons */
+  --button-background-default: #fff;
+  --button-background-default-hover: #f7f7f6;
+  --button-background-default-pressed: #f2f1ed;
+  --button-background-primary: #386fb1;
+  --button-background-primary-hover: #2c588f;
+  --button-background-primary-pressed: #204571;
+  --button-background-disabled: #f2f7ff;
+
+  /* Border */
+  --border-default: #deddd7;
+  --border-muted: #f2f1ed;
+  --border-strong: #c5c4bf;
+  --border-alpha: rgba(0, 0, 0, 0.12);
+
+  /* Text */
+  --text-default: #303030;
+  --text-hover: #727272;
+  --text-muted: #575757;
+  --text-disabled: #444;
+  --text-on-primary: #fff;
+
+  /* Icon */
+  --icon-default: #444;
+  --icon-muted: #444;
+  --icon-muted-light: #aaa9a4;
+
+  /* Action */
+  --action-primary: #008060;
+  --action-primary-hover: #006452;
+
+  /* Checkbox */
+  --checkbox-border: rgba(0, 0, 0, 0.87);
+
+  /* Field status */
+  --field-success-bg: #e4f3ec;
+  --field-success-border: #bee6d5;
+  --field-success-text: #00473c;
+  --field-error-bg: #ffe8ec;
+  --field-error-border: #ffced3;
+  --field-error-text: #7c1b3d;
+  --field-warning-text: #92400e;
+
+  /* Utility */
+  --placeholder-text: #8a8985;
+  --focus-ring: rgba(56, 111, 177, 0.5);
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-medium: rgba(0, 0, 0, 0.2);
+
+  /* Spacing */
+  --spacing-xs: 0.125rem;
+  --spacing-sm: 0.25rem;
+  --spacing-md: 0.5rem;
+  --spacing-lg: 0.75rem;
+  --spacing-xl: 1rem;
+  --spacing-2xl: 1.25rem;
+  --spacing-3xl: 1.5rem;
+  --spacing-4xl: 2rem;
+  --spacing-5xl: 2.25rem;
+  --spacing-6xl: 3rem;
+
+  /* Radius */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-pill: 9999px;
+
+  /* Border width */
+  --border-width-thin: 1px;
+  --border-width-thick: 2px;
+
+  /* Typography */
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+
+  --line-height-xs: 14px;
+  --line-height-sm: 16px;
+  --line-height-md: 20px;
+  --line-height-lg: 24px;
+  --line-height-xl: 28px;
+  --line-height-2xl: 32px;
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}

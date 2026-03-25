@@ -1,27 +1,38 @@
 {% extends "base.html" %}
 {% block nav_flows %}active{% endblock %}
 {% block title %}Fund Flows{% endblock %}
+{% block title_display %}Fund Flows{% endblock %}
+
+{% block header_actions %}
+<a href="/preview?session_token={{ session_token }}" class="btn btn-primary btn-sm">
+    Next <span style="margin-left: 4px;">→</span>
+</a>
+{% endblock %}
+
+{% block page_subtitle %}
+<div class="page-header-subtitle">Compile-time preview — statuses will update after execution</div>
+{% endblock %}
 
 {% block content %}
-<div class="flows-container" style="padding-bottom: 72px;">
-    <h2>Fund Flows</h2>
+{% include "partials/diagnostics_bar.html" %}
 
-    <p class="text-muted" style="font-size: 0.85rem; margin-top: -8px; margin-bottom: 16px;">
-        Compile-time preview — statuses will update after execution
-    </p>
-
-    {% include "partials/diagnostics_bar.html" %}
-
-    {% if flow_summaries %}
-    {% for fs in flow_summaries %}
-    <div class="flow-section">
-        <div class="flow-card">
-            <div class="flow-card-header">
-                <span class="flow-ref">{{ fs.trace_value }}</span>
-                <span class="flow-pattern">{{ fs.pattern_type }}</span>
-                <span class="flow-status-badge flow-status-{{ fs.status }}">{{ fs.status }}</span>
+{% if flow_summaries %}
+{% for fs in flow_summaries %}
+<div class="flow-section">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-heading">
+                <span class="card-title">{{ fs.trace_value }}</span>
+                <span class="card-description">{{ fs.pattern_type }}</span>
             </div>
-
+            <div class="card-actions">
+                <span class="badge badge--{{ 'success' if fs.status == 'ready' else 'default' }}">{{ fs.status }}</span>
+                <a href="/flows/view/{{ fs.index }}?session_token={{ session_token }}" class="btn btn-sm btn-outline">
+                    View Detail
+                </a>
+            </div>
+        </div>
+        <div class="card-content">
             <div class="flow-card-stats">
                 <span class="flow-stat">{{ fs.step_count }} step{{ 's' if fs.step_count != 1 }}</span>
                 {% if fs.og_count %}
@@ -63,58 +74,48 @@
                 {% endfor %}
             </div>
             {% endif %}
-            <div style="margin-top: 8px; display: flex; gap: 8px;">
-                <a href="/flows/view/{{ fs.index }}?session_token={{ session_token }}" class="btn btn-sm btn-outline">
-                    View Detail
-                </a>
-            </div>
         </div>
-
-        {% if loop.index0 < mermaid_diagrams|length %}
-            {% set mermaid_id = loop.index0 %}
-            {% set mermaid_diagram = mermaid_diagrams[loop.index0] %}
-            {% set mermaid_label = fs.trace_value %}
-            {% include "partials/mermaid_accordion.html" %}
-        {% endif %}
-
-        {% set flow_idx = loop.index0 %}
-        {% include "partials/scenario_builder.html" %}
     </div>
-    {% endfor %}
-    {% else %}
-    <p class="empty-state">No fund flows in this configuration.</p>
+
+    {% if loop.index0 < mermaid_diagrams|length %}
+        {% set mermaid_id = loop.index0 %}
+        {% set mermaid_diagram = mermaid_diagrams[loop.index0] %}
+        {% set mermaid_label = fs.trace_value %}
+        {% include "partials/mermaid_accordion.html" %}
     {% endif %}
 
-    <details class="json-editor-panel">
-        <summary>View / Edit JSON Config</summary>
-        <form id="revalidate-form"
-              hx-post="/api/revalidate"
-              hx-target="#content"
-              hx-swap="innerHTML"
-              hx-indicator="#revalidate-spinner-flows"
-              hx-disabled-elt="button[type=submit]">
-            <input type="hidden" name="session_token" value="{{ session_token }}">
-            <div id="flows-json-container" class="monaco-container" style="height: 480px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;"></div>
-            <input type="hidden" id="flows-json-editor" name="config_json" value="">
-            <div id="flows-json-status" class="json-parse-status"></div>
-            <div class="json-editor-actions">
-                <button type="submit" class="btn btn-secondary btn-sm">
-                    <span class="btn-text">Re-validate</span>
-                    <span id="revalidate-spinner-flows" class="htmx-indicator spinner-sm"></span>
-                </button>
-                <button type="button" class="btn btn-sm btn-outline" id="btn-format-flows-json">Format</button>
-                <button type="button" class="btn btn-sm btn-outline" id="btn-copy-flows-json">Copy</button>
-            </div>
-        </form>
-    </details>
+    {% set flow_idx = loop.index0 %}
+    {% include "partials/scenario_builder.html" %}
 </div>
+{% endfor %}
+{% else %}
+{% set empty_title = "No Fund Flows" %}
+{% set empty_description = "Upload a configuration with fund flows to see them here." %}
+{% include "partials/empty_state.html" %}
+{% endif %}
 
-<div class="pinned-bottom-bar">
-    <a href="/preview?session_token={{ session_token }}" class="btn btn-primary">
-        Next
-        <span style="margin-left: 4px;">→</span>
-    </a>
-</div>
+<details class="json-editor-panel">
+    <summary>View / Edit JSON Config</summary>
+    <form id="revalidate-form"
+          hx-post="/api/revalidate"
+          hx-target="#content"
+          hx-swap="innerHTML"
+          hx-indicator="#revalidate-spinner-flows"
+          hx-disabled-elt="button[type=submit]">
+        <input type="hidden" name="session_token" value="{{ session_token }}">
+        <div id="flows-json-container" class="monaco-container" style="height: 480px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;"></div>
+        <input type="hidden" id="flows-json-editor" name="config_json" value="">
+        <div id="flows-json-status" class="json-parse-status"></div>
+        <div class="json-editor-actions">
+            <button type="submit" class="btn btn-secondary btn-sm">
+                <span class="btn-text">Re-validate</span>
+                <span id="revalidate-spinner-flows" class="htmx-indicator spinner-sm"></span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-format-flows-json">Format</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-copy-flows-json">Copy</button>
+        </div>
+    </form>
+</details>
 
 {% include "partials/mermaid_scripts.html" %}
 

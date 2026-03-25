@@ -1,5 +1,34 @@
 {% extends "base.html" %}
+{% block nav_setup %}active{% endblock %}
 {% block title %}Execution Plan{% endblock %}
+{% block title_display %}Execution Plan{% endblock %}
+
+{% block header_actions %}
+{% if has_funds_flows %}
+<a href="/flows?session_token={{ session_token }}" class="btn btn-outline btn-sm">Back to Fund Flows</a>
+{% endif %}
+<form style="display:inline;"
+      hx-post="/api/execute"
+      hx-target="#content"
+      hx-swap="innerHTML"
+      hx-indicator="#execute-spinner"
+      hx-disabled-elt="button[type=submit]">
+    <input type="hidden" name="session_token" value="{{ session_token }}">
+    <button type="submit" class="btn btn-primary btn-sm">
+        <span class="btn-text">Execute ({{ resource_count }} resources)</span>
+        <span id="execute-spinner" class="htmx-indicator spinner-sm"></span>
+    </button>
+</form>
+{% endblock %}
+
+{% block header_body_class %} page-header-body--with-subtitle page-header-body--no-sections{% endblock %}
+
+{% block page_subtitle %}
+<div class="page-header-subtitle">
+    {{ resource_count }} resources in {{ batches|length }} batches.
+    {{ non_deletable_count }} persistent resource(s) cannot be deleted.
+</div>
+{% endblock %}
 
 {% block content %}
 {% include "preview.html" %}

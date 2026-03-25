@@ -243,6 +243,9 @@ def compute_effective_dates(
     recipe_overrides = (
         recipe_timing.step_delay_overrides if recipe_timing else None
     )
+    step_offsets = (
+        recipe_timing.step_offsets if recipe_timing else None
+    )
 
     rng = random.Random(seed + instance_index + 5555)
 
@@ -259,33 +262,38 @@ def compute_effective_dates(
     for step in all_steps:
         step_id = step.get("step_id", "")
 
-        # Find the latest dependency date as the starting point
-        dep_base = base
-        for dep_id in step.get("depends_on", []):
-            if dep_id in step_dates and step_dates[dep_id] > dep_base:
-                dep_base = step_dates[dep_id]
-
-        delay, jitter, biz_days = _resolve_step_delay(
-            step, flow_timing, recipe_overrides,
-        )
-
-        if jitter > 0:
-            delay += rng.uniform(-jitter, jitter)
-            delay = max(0.0, delay)
-
-        delay_int = max(0, round(delay))
-
-        if biz_days and delay_int > 0:
-            effective = _advance_business_days(dep_base, delay_int)
-        elif delay_int > 0:
-            effective = dep_base + timedelta(days=delay_int)
-        else:
-            effective = dep_base
-
-        if biz_days:
+        if step_offsets and step_id in step_offsets:
+            offset_days = step_offsets[step_id]
+            effective = _advance_business_days(base, offset_days) if offset_days > 0 else base
             effective = _skip_to_business_day(effective)
+            step_dates[step_id] = effective
+        else:
+            dep_base = base
+            for dep_id in step.get("depends_on", []):
+                if dep_id in step_dates and step_dates[dep_id] > dep_base:
+                    dep_base = step_dates[dep_id]
 
-        step_dates[step_id] = effective
+            delay, jitter, biz_days = _resolve_step_delay(
+                step, flow_timing, recipe_overrides,
+            )
+
+            if jitter > 0:
+                delay += rng.uniform(-jitter, jitter)
+                delay = max(0.0, delay)
+
+            delay_int = max(0, round(delay))
+
+            if biz_days and delay_int > 0:
+                effective = _advance_business_days(dep_base, delay_int)
+            elif delay_int > 0:
+                effective = dep_base + timedelta(days=delay_int)
+            else:
+                effective = dep_base
+
+            if biz_days:
+                effective = _skip_to_business_day(effective)
+
+            step_dates[step_id] = effective
         effective_str = effective.isoformat()
 
         # Only stamp if the step doesn't already have an explicit value

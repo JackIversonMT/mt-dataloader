@@ -10,7 +10,7 @@
     {% if payload %}
     <div class="accordion staged-accordion">
         <div class="accordion-header" onclick="this.parentNode.classList.toggle('open')">Payload</div>
-        <div class="accordion-panel">
+        <div class="accordion-panel thin-scrollbar">
             <pre>{{ payload|tojson(indent=2) }}</pre>
         </div>
     </div>

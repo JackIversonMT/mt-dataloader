@@ -41,6 +41,10 @@ class RecipeTimingConfig(BaseModel):
         default_factory=dict,
         description="step_id -> delay_days override for this recipe",
     )
+    step_offsets: dict[str, int] = Field(
+        default_factory=dict,
+        description="step_id -> T+N day offset set in the scenario builder UI",
+    )
 
 
 from models.steps import (

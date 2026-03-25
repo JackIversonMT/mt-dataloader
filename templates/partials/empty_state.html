@@ -1,0 +1,16 @@
+<div class="empty-state">
+    {% if empty_icon %}
+    <div class="empty-state-icon">{{ empty_icon }}</div>
+    {% endif %}
+    <div class="empty-state-header">
+        <h2 class="empty-state-title">{{ empty_title|default(empty_heading|default('No data')) }}</h2>
+        {% if empty_description or empty_body %}
+        <p class="empty-state-description">{{ empty_description|default(empty_body|default('')) }}</p>
+        {% endif %}
+    </div>
+    {% if empty_action_url %}
+    <div class="empty-state-links">
+        <a href="{{ empty_action_url }}" class="btn btn-secondary">{{ empty_action_label }}</a>
+    </div>
+    {% endif %}
+</div>

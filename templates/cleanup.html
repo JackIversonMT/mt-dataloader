@@ -1,10 +1,24 @@
-<div class="cleanup-container"
+<div class="page-header-container">
+    <div class="breadcrumbs">
+        <span class="breadcrumb-item"><a href="/runs">Runs</a></span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item">{{ run_id[:16] }}…</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item">Cleanup</span>
+    </div>
+    <div class="page-header-body page-header-body--with-subtitle page-header-body--no-sections">
+        <div class="page-header-title-row">
+            <div class="page-header-left">
+                <h1>Cleaning Up</h1>
+            </div>
+        </div>
+        <div class="page-header-subtitle">Resources are cleaned up in reverse creation order.</div>
+    </div>
+</div>
+<div class="page-body"
      hx-ext="sse"
      sse-connect="/api/cleanup/stream/{{ cleanup_token }}"
      sse-close="close">
-
-    <h2>Cleaning Up Run: <code>{{ run_id }}</code></h2>
-    <p class="subtitle">Resources are cleaned up in reverse creation order.</p>
 
     <div sse-swap="cleanup_progress" hx-swap="none"></div>
     <div sse-swap="cleanup_complete" hx-swap="innerHTML" hx-target="#cleanup-result"></div>
@@ -32,3 +46,10 @@
 
     <div id="cleanup-result"></div>
 </div>
+
+<script>
+(function() {
+    var runsLink = document.querySelector('a.sidebar-link[href="/runs"]');
+    if (runsLink) runsLink.classList.add('active');
+})();
+</script>

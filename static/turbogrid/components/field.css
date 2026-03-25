@@ -1,0 +1,16 @@
+/* Field Components */
+.turbogrid {
+  .field-label {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-normal);
+    gap: var(--spacing-sm);
+    line-height: var(--line-height-sm);
+    color: var(--text-disabled);
+  }
+
+  .field-error {
+    color: var(--field-warning-text);
+  }
+}

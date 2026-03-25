@@ -1,0 +1,96 @@
+/* Proposition Components */
+.turbogrid {
+  .statement {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+
+    .proposition {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+
+      &:last-of-type .operator {
+        display: none;
+      }
+    }
+
+    .operator {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      line-height: var(--line-height-sm);
+      white-space: nowrap;
+    }
+  }
+
+  .predicate {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 1.75rem;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-sm);
+
+    .term-field,
+    .term-operator,
+    .term-value,
+    .clear {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      background-color: var(--button-background-default-pressed);
+    }
+
+    .term-field {
+      border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+      gap: var(--spacing-xs);
+      font-weight: var(--font-weight-medium);
+      padding: 0 var(--spacing-md);
+    }
+
+    .term-operator,
+    .term-value {
+      border-left: var(--border-width-thin) solid var(--background-default);
+      cursor: pointer;
+      padding: 0 var(--spacing-md);
+
+      &:hover {
+        background-color: var(--border-default);
+      }
+
+      .term-button {
+        all: unset;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        height: 100%;
+      }
+    }
+
+    .clear {
+      border-left: var(--border-width-thin) solid var(--background-default);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      cursor: pointer;
+      padding: 0 var(--spacing-md);
+
+      &:hover {
+        background-color: var(--border-default);
+      }
+
+      button {
+        all: unset;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        height: 100%;
+      }
+    }
+
+    > :last-child {
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+  }
+}

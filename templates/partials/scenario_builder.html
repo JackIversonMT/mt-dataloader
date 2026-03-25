@@ -7,7 +7,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label>Count</label>
-                <input type="number" id="gen-instances-{{ flow_idx }}" value="10" min="1" max="5000">
+                <input type="number" id="gen-instances-{{ flow_idx }}" class="input input-border" value="10" min="1" max="5000">
             </div>
         </div>
         <input type="hidden" id="gen-seed-{{ flow_idx }}" value="424242">
@@ -94,7 +94,7 @@
                 <span class="amount-header-right">Amount</span>
             </div>
             {% for as in fs.amount_steps %}
-            <div class="amount-step-item" data-base-amount="{{ as.amount }}" data-step-id="{{ as.step_id }}" data-variance-mode="global">
+            <div class="amount-step-item" data-base-amount="{{ as.amount }}" data-step-id="{{ as.step_id }}" data-variance-mode="global" data-step-index="{{ loop.index0 }}">
                 <button type="button" class="variance-lock-btn" title="Click to lock amount">
                     <svg class="lock-icon lock-icon-unlocked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
                     <svg class="lock-icon lock-icon-locked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -102,6 +102,16 @@
                 </button>
                 <code class="ref-name">{{ as.step_id }}</code>
                 <span class="ledgerable-pill ledgerable-{{ as.type }}">{{ as.type }}</span>
+                {% if loop.first %}
+                <span class="timing-pill timing-pill-t0" title="Base date — click calendar to change">T0</span>
+                <button type="button" class="timing-date-btn" title="Set base date">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </button>
+                <input type="date" class="timing-date-input" style="display:none;">
+                {% else %}
+                <span class="timing-pill timing-pill-offset" title="Click to edit day offset">T+{{ loop.index0 }}</span>
+                <input type="number" class="timing-offset-input" value="{{ loop.index0 }}" min="0" max="365" step="1">
+                {% endif %}
                 <input type="number" class="variance-custom-input" min="0" max="100" step="0.5" placeholder="%">
                 <span class="amount-display">${{ '{:,.2f}'.format(as.amount / 100) }}</span>
             </div>
@@ -110,7 +120,7 @@
         <div class="form-row" style="margin-top: 8px;">
             <div class="form-group">
                 <label>Variance % (±)</label>
-                <input type="number" id="gen-variance-{{ flow_idx }}" value="0.0" min="0" max="100" step="0.5"
+                <input type="number" id="gen-variance-{{ flow_idx }}" class="input input-border" value="0.0" min="0" max="100" step="0.5"
                        onchange="updateAmountRanges{{ flow_idx }}()" oninput="updateAmountRanges{{ flow_idx }}()">
             </div>
         </div>
@@ -122,11 +132,11 @@
         <div class="form-row">
             <div class="form-group">
                 <label>Staged count</label>
-                <input type="number" id="gen-staged-{{ flow_idx }}" value="0" min="0">
+                <input type="number" id="gen-staged-{{ flow_idx }}" class="input input-border" value="0" min="0">
             </div>
             <div class="form-group">
                 <label>Stage from</label>
-                <select id="gen-staged-sel-{{ flow_idx }}">
+                <select id="gen-staged-sel-{{ flow_idx }}" class="input input-border">
                     <option value="happy_path">Happy path</option>
                     <option value="all">All instances</option>
                     {% for og in fs.optional_groups %}
@@ -141,8 +151,8 @@
         <div class="scenario-section-label">Timing</div>
         <div class="form-row">
             <div class="form-group">
-                <label>Base date</label>
-                <select id="gen-timing-base-{{ flow_idx }}">
+                <label>Base date (T0)</label>
+                <select id="gen-timing-base-{{ flow_idx }}" class="input input-border">
                     <option value="today" selected>Today</option>
                     <option value="today-30d">Today − 30d</option>
                     <option value="today-60d">Today − 60d</option>
@@ -151,23 +161,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Spread days</label>
-                <input type="number" id="gen-timing-spread-{{ flow_idx }}" value="0" min="0" max="365" step="1">
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Spread pattern</label>
-                <select id="gen-timing-pattern-{{ flow_idx }}">
-                    <option value="uniform" selected>Uniform</option>
-                    <option value="ramp_up">Ramp up</option>
-                    <option value="ramp_down">Ramp down</option>
-                    <option value="clustered">Clustered</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Spread jitter (days)</label>
-                <input type="number" id="gen-timing-jitter-{{ flow_idx }}" value="0" min="0" max="30" step="0.5">
+                <label>Spread instances over (days)</label>
+                <input type="number" id="gen-timing-spread-{{ flow_idx }}" class="input input-border" value="0" min="0" max="365" step="1">
             </div>
         </div>
     </div>
@@ -182,8 +177,8 @@
         <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 5, 0, {})">100 + 5% variance</button>
         {% endif %}
         <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, {% if fs.optional_groups %}5{% else %}0{% endif %}, {% if fs.amount_steps %}5{% else %}0{% endif %}, 1, {})">100 + 1 staged</button>
-        <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, {base_date:'today-90d', spread_days:90, spread_pattern:'uniform'})">90d seasoned</button>
-        <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, {base_date:'today-30d', spread_days:30, spread_pattern:'ramp_up', spread_jitter:1})">Realistic ACH</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, {base_date:'today-90d', spread_days:90})">90d seasoned</button>
+        <button class="btn btn-sm btn-outline" onclick="setPreset{{ flow_idx }}(100, 0, 0, 0, {base_date:'today-30d', spread_days:30})">30d seasoned</button>
     </div>
 
     <div class="scenario-actions">
@@ -281,6 +276,44 @@
         });
     })();
 
+    (function initTimingPills() {
+        var builder = document.getElementById('scenario-builder-' + idx);
+        if (!builder) return;
+        builder.querySelectorAll('.timing-date-btn').forEach(function(btn) {
+            var dateInput = btn.nextElementSibling;
+            btn.addEventListener('click', function() {
+                if (dateInput.style.display === 'none') {
+                    dateInput.style.display = '';
+                    dateInput.showPicker && dateInput.showPicker();
+                } else {
+                    dateInput.style.display = 'none';
+                }
+            });
+            dateInput.addEventListener('change', function() {
+                if (this.value) {
+                    var pill = btn.previousElementSibling;
+                    pill.textContent = 'T0';
+                    pill.title = 'Base: ' + this.value;
+                }
+            });
+        });
+        builder.querySelectorAll('.timing-pill-offset').forEach(function(pill) {
+            var input = pill.nextElementSibling;
+            pill.addEventListener('click', function() {
+                if (input.style.display === 'none' || input.style.display === '') {
+                    input.style.display = 'inline-block';
+                    input.focus();
+                }
+            });
+            input.addEventListener('change', function() {
+                pill.textContent = 'T+' + (parseInt(this.value) || 0);
+            });
+            input.addEventListener('blur', function() {
+                this.style.display = '';
+            });
+        });
+    })();
+
     function buildRecipe() {
         var instances = parseInt(el('gen-instances').value);
         var recipe = {
@@ -340,13 +373,20 @@
 
         var spreadDays = parseInt(el('gen-timing-spread').value) || 0;
         var baseDate = el('gen-timing-base').value;
-        if (spreadDays > 0 || baseDate !== 'today') {
+        var dateInput = document.querySelector('#scenario-builder-' + idx + ' .timing-date-input');
+        var customDate = dateInput && dateInput.value ? dateInput.value : null;
+        var stepOffsets = {};
+        document.querySelectorAll('#scenario-builder-' + idx + ' .amount-step-item').forEach(function(row) {
+            var stepId = row.getAttribute('data-step-id');
+            var offsetInput = row.querySelector('.timing-offset-input');
+            if (offsetInput) stepOffsets[stepId] = parseInt(offsetInput.value) || 0;
+        });
+        if (spreadDays > 0 || baseDate !== 'today' || customDate || Object.keys(stepOffsets).length > 0) {
             recipe.timing = {
-                base_date: baseDate,
+                base_date: customDate || baseDate,
                 instance_spread_days: spreadDays,
-                spread_pattern: el('gen-timing-pattern').value,
-                spread_jitter_days: parseFloat(el('gen-timing-jitter').value) || 0,
             };
+            if (Object.keys(stepOffsets).length > 0) recipe.timing.step_offsets = stepOffsets;
         }
 
         return recipe;
@@ -361,8 +401,6 @@
         timing = timing || {};
         el('gen-timing-base').value = timing.base_date || 'today';
         el('gen-timing-spread').value = timing.spread_days || 0;
-        el('gen-timing-pattern').value = timing.spread_pattern || 'uniform';
-        el('gen-timing-jitter').value = timing.spread_jitter || 0;
     };
 
     window['genPreview' + idx] = async function() {
@@ -469,8 +507,23 @@
             var t = savedRecipe.timing;
             if (el('gen-timing-base')) el('gen-timing-base').value = t.base_date || 'today';
             if (el('gen-timing-spread')) el('gen-timing-spread').value = t.instance_spread_days || 0;
-            if (el('gen-timing-pattern')) el('gen-timing-pattern').value = t.spread_pattern || 'uniform';
-            if (el('gen-timing-jitter')) el('gen-timing-jitter').value = t.spread_jitter_days || 0;
+            if (t.base_date && t.base_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                var dateInput = document.querySelector('#scenario-builder-' + idx + ' .timing-date-input');
+                if (dateInput) { dateInput.value = t.base_date; dateInput.style.display = ''; }
+            }
+            if (t.step_offsets) {
+                document.querySelectorAll('#scenario-builder-' + idx + ' .amount-step-item').forEach(function(row) {
+                    var stepId = row.getAttribute('data-step-id');
+                    if (stepId in t.step_offsets) {
+                        var offsetInput = row.querySelector('.timing-offset-input');
+                        if (offsetInput) {
+                            offsetInput.value = t.step_offsets[stepId];
+                            var pill = row.querySelector('.timing-pill-offset');
+                            if (pill) pill.textContent = 'T+' + t.step_offsets[stepId];
+                        }
+                    }
+                });
+            }
         }
         syncEdgeMax();
         window['updateAmountRanges' + idx]();

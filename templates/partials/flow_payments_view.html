@@ -18,7 +18,7 @@
             <span class="flow-th" style="width: 8%;">Rail</span>
             <span class="flow-th" style="width: 14%;">Day</span>
         </div>
-        <div class="flow-col-body" id="flow-scroll-tx" onscroll="syncFlowScroll(this)">
+        <div class="flow-col-body thin-scrollbar" id="flow-scroll-tx" onscroll="syncFlowScroll(this)">
             {% set ns_og = namespace(current_og=None) %}
             {% for row in view_data.payment_rows %}
             {% if row.optional_group and row.optional_group != ns_og.current_og %}
@@ -119,7 +119,7 @@
             <span class="flow-th">In</span>
             <span class="flow-th">Out</span>
         </div>
-        <div class="flow-col-body flow-scroll-acct" onscroll="syncFlowScroll(this)">
+        <div class="flow-col-body thin-scrollbar flow-scroll-acct" onscroll="syncFlowScroll(this)">
             {% set ns = namespace(net_in=0, net_out=0) %}
             {% set ns_og = namespace(current_og=None) %}
             {% for row in view_data.payment_rows %}

@@ -6,7 +6,12 @@
     {% if discovery.warnings %}
     <div class="discovery-warnings">
         {% for warning in discovery.warnings %}
-        <div class="warning-badge">&#9888; {{ warning }}</div>
+        <div class="alert alert--warning" role="alert">
+            <div class="alert-content">
+                <span class="alert-icon">⚠</span>
+                <div>{{ warning }}</div>
+            </div>
+        </div>
         {% endfor %}
     </div>
     {% endif %}
@@ -66,7 +71,9 @@
         {% endif %}
 
         {% if not discovery.connections and not discovery.internal_accounts and not discovery.ledgers %}
-        <p class="empty-state">No pre-existing resources discovered. All resources will be created from config.</p>
+        {% set empty_title = "No Resources Discovered" %}
+        {% set empty_description = "All resources will be created from config." %}
+        {% include "partials/empty_state.html" %}
         {% endif %}
     </div>
 </div>

@@ -1,16 +1,24 @@
-<div class="execute-container"
+<div class="page-header-container">
+    <div class="page-header-body page-header-body--with-subtitle page-header-body--no-sections">
+        <div class="page-header-title-row">
+            <div class="page-header-left">
+                <h1>Executing</h1>
+            </div>
+        </div>
+        <div class="page-header-subtitle">
+            <span id="progress-count">0</span> / {{ resource_count }} resources
+            <span id="progress-detail"></span>
+        </div>
+    </div>
+</div>
+<div class="page-body"
      hx-ext="sse"
      sse-connect="/api/execute/stream?session_token={{ session_token }}"
      sse-close="close">
 
-    <h2>Executing</h2>
     <div class="progress-bar">
         <div id="progress-fill" class="progress-fill"></div>
     </div>
-    <p class="progress-text">
-        <span id="progress-count">0</span> / {{ resource_count }} resources
-        <span id="progress-detail"></span>
-    </p>
 
     <div sse-swap="creating" hx-swap="none"></div>
     <div sse-swap="created" hx-swap="none"></div>
@@ -56,15 +64,20 @@
 </div>
 
 <script>
-document.body.addEventListener("htmx:oobAfterSwap", function() {
-    var created = document.querySelectorAll(".resource-row.created").length;
-    var staged = document.querySelectorAll(".resource-row.staged").length;
-    var total = {{ resource_count }};
-    document.getElementById("progress-count").textContent = created + staged;
-    document.getElementById("progress-fill").style.width = ((created + staged) / total * 100) + "%";
-    var parts = [];
-    if (created) parts.push(created + " created");
-    if (staged) parts.push(staged + " staged");
-    document.getElementById("progress-detail").textContent = parts.length ? "(" + parts.join(", ") + ")" : "";
-});
+(function() {
+    var setupLink = document.querySelector('a.sidebar-link[href="/setup"]');
+    if (setupLink) setupLink.classList.add('active');
+
+    document.body.addEventListener("htmx:oobAfterSwap", function() {
+        var created = document.querySelectorAll(".resource-row.created").length;
+        var staged = document.querySelectorAll(".resource-row.staged").length;
+        var total = {{ resource_count }};
+        document.getElementById("progress-count").textContent = created + staged;
+        document.getElementById("progress-fill").style.width = ((created + staged) / total * 100) + "%";
+        var parts = [];
+        if (created) parts.push(created + " created");
+        if (staged) parts.push(staged + " staged");
+        document.getElementById("progress-detail").textContent = parts.length ? "(" + parts.join(", ") + ")" : "";
+    });
+})();
 </script>

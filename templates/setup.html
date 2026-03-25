@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 {% block nav_setup %}active{% endblock %}
 {% block title %}Setup — MT Dataloader{% endblock %}
+{% block title_display %}Configure Dataloader{% endblock %}
+
+{% block header_body_class %} page-header-body--with-subtitle page-header-body--no-sections{% endblock %}
+
+{% block page_subtitle %}
+<div class="page-header-subtitle">
+    Connect to your <a href="{{ mt_docs.sandbox }}" target="_blank" rel="noopener" class="doc-link-inline">Modern Treasury sandbox</a>
+    and provide a JSON config.
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="setup-container">
-    <h2>Configure Dataloader</h2>
-    <p class="subtitle">
-        Connect to your <a href="{{ mt_docs.sandbox }}" target="_blank" rel="noopener" class="doc-link-inline">Modern Treasury sandbox</a>
-        and provide a JSON config.
-    </p>
 
     <form id="setup-form"
           hx-post="/api/validate"
@@ -22,28 +26,30 @@
             <div class="form-group">
                 <label for="api_key">API Key</label>
                 <input type="password" id="api_key" name="api_key" required
-                       placeholder="sk_test_..." autocomplete="off">
+                       class="input input-border" placeholder="sk_test_..." autocomplete="off">
             </div>
             <div class="form-group">
                 <label for="org_id">Organization ID</label>
                 <input type="text" id="org_id" name="org_id" required
-                       placeholder="org_..." autocomplete="off">
+                       class="input input-border" placeholder="org_..." autocomplete="off">
             </div>
             <div class="form-group">
                 <label for="org_name">Display Name <span style="font-weight:400;text-transform:none">(optional)</span></label>
                 <input type="text" id="org_name" name="org_name"
-                       placeholder="My Sandbox" autocomplete="off">
+                       class="input input-border" placeholder="My Sandbox" autocomplete="off">
             </div>
         </div>
 
         <div class="form-group">
             <label>JSON Config</label>
-            <div class="input-tabs">
-                <button type="button" class="input-tab active" data-target="tab-file">Upload File</button>
-                <button type="button" class="input-tab" data-target="tab-paste">Paste JSON</button>
+            <div class="tab-strip">
+                <div class="tab-strip-inner">
+                    <button type="button" class="tab-btn active" data-target="tab-file">Upload File</button>
+                    <button type="button" class="tab-btn" data-target="tab-paste">Paste JSON</button>
+                </div>
             </div>
 
-            <div id="tab-file" class="input-tab-panel active">
+            <div id="tab-file" class="tab-panel active">
                 <div class="file-drop-zone" id="drop-zone">
                     <input type="file" id="config_file" name="config_file"
                            accept=".json,application/json">
@@ -54,7 +60,7 @@
                 </div>
             </div>
 
-            <div id="tab-paste" class="input-tab-panel">
+            <div id="tab-paste" class="tab-panel">
                 <div id="config-json-container" class="monaco-container" style="height: 380px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;"></div>
                 <input type="hidden" id="config_json" name="config_json" value="">
                 <div id="json-parse-status" class="json-parse-status"></div>
@@ -68,13 +74,12 @@
             </button>
         </div>
     </form>
-</div>
 
 <script>
 (function() {
     // Tab switching
-    var tabs = document.querySelectorAll(".input-tab");
-    var panels = document.querySelectorAll(".input-tab-panel");
+    var tabs = document.querySelectorAll(".tab-btn[data-target]");
+    var panels = document.querySelectorAll(".tab-panel");
     tabs.forEach(function(tab) {
         tab.addEventListener("click", function() {
             tabs.forEach(function(t) { t.classList.remove("active"); });
@@ -134,7 +139,7 @@
 
     // Prevent submit if no config provided
     document.getElementById("setup-form").addEventListener("htmx:configRequest", function(evt) {
-        var activeTab = document.querySelector(".input-tab.active");
+        var activeTab = document.querySelector(".tab-btn.active[data-target]");
         if (activeTab && activeTab.dataset.target === "tab-paste") {
             if (!hiddenInput.value.trim()) {
                 evt.preventDefault();

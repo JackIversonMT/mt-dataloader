@@ -1,37 +1,41 @@
-<div class="conn-editor-overlay" onclick="if(event.target===this)this.parentElement.style.display='none'">
-    <div class="conn-editor-panel">
-        <div class="conn-editor-header">
-            <h3>Connection Settings</h3>
-            <button class="btn btn-xs" onclick="this.closest('#conn-editor-modal').style.display='none'">×</button>
+<div class="modal-overlay" id="conn-editor-modal" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-panel">
+        <div class="modal-header">
+            <div class="modal-heading">
+                <div class="modal-title">Connection Settings</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-xs" onclick="document.getElementById('conn-editor-modal').style.display='none'" aria-label="Close">✕</button>
+            </div>
         </div>
         <form id="conn-editor-form">
-            <div class="form-group">
-                <label class="form-label">API Key</label>
-                <input type="password" name="api_key" class="form-input"
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>API Key</label>
+                <input type="password" name="api_key" class="input input-border"
                        value="{{ api_key or '' }}" placeholder="Enter MT API key">
             </div>
             <div class="form-group">
-                <label class="form-label">Organization ID</label>
-                <input type="text" name="org_id" class="form-input"
+                <label>Organization ID</label>
+                <input type="text" name="org_id" class="input input-border"
                        value="{{ org_id or '' }}" placeholder="Enter org ID">
             </div>
             <div class="form-group">
-                <label class="form-label">Organization Name (optional)</label>
-                <input type="text" name="org_name" class="form-input"
+                <label>Organization Name (optional)</label>
+                <input type="text" name="org_name" class="input input-border"
                        value="{{ org_name or '' }}" placeholder="Display name">
+                </div>
+                <div id="conn-test-result" style="margin-top: 12px;"></div>
             </div>
-
-            <div id="conn-test-result" style="margin: 12px 0;"></div>
-
-            <div class="conn-editor-actions">
-                <button type="button" class="btn btn-outline"
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline btn-sm"
                         hx-post="/api/connection-test"
                         hx-include="#conn-editor-form"
                         hx-target="#conn-test-result"
                         hx-swap="innerHTML">
                     Test Connection
                 </button>
-                <button type="button" class="btn btn-primary"
+                <button type="button" class="btn btn-primary btn-sm"
                         hx-post="/api/connection-apply"
                         hx-include="#conn-editor-form"
                         hx-target="#conn-apply-result"
@@ -40,7 +44,7 @@
                     Apply
                 </button>
             </div>
-            <div id="conn-apply-result" style="margin-top: 12px;"></div>
+            <div id="conn-apply-result" style="padding: 0 16px 12px;"></div>
         </form>
     </div>
 </div>

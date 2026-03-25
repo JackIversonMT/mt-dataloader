@@ -15,7 +15,7 @@
             <span class="flow-th" style="width: 22%;">Ref</span>
             <span class="flow-th" style="width: 18%;">Effective</span>
         </div>
-        <div class="flow-col-body" id="flow-scroll-tx" onscroll="syncFlowScroll(this)">
+        <div class="flow-col-body thin-scrollbar" id="flow-scroll-tx" onscroll="syncFlowScroll(this)">
             {% set ns_og = namespace(current_og=None) %}
             {% for row in view_data.ledger_rows %}
             {% if row.optional_group and row.optional_group != ns_og.current_og %}
@@ -79,7 +79,7 @@
             <span class="flow-th">Debit</span>
             <span class="flow-th">Credit</span>
         </div>
-        <div class="flow-col-body flow-scroll-acct" onscroll="syncFlowScroll(this)">
+        <div class="flow-col-body thin-scrollbar flow-scroll-acct" onscroll="syncFlowScroll(this)">
             {% set ns = namespace(net=0) %}
             {% set ns_og = namespace(current_og=None) %}
             {% for row in view_data.ledger_rows %}
@@ -144,7 +144,7 @@
                 <span class="flow-th">In</span>
                 <span class="flow-th">Out</span>
             </div>
-            <div class="flow-col-body flow-scroll-acct" onscroll="syncFlowScroll(this)">
+            <div class="flow-col-body thin-scrollbar flow-scroll-acct" onscroll="syncFlowScroll(this)">
                 {% set ns_og = namespace(current_og=None) %}
                 {% for row in view_data.ledger_rows %}
                 {% if row.optional_group and row.optional_group != ns_og.current_og %}

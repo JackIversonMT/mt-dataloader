@@ -1,0 +1,611 @@
+/*
+ * MT Patterns for Dataloader
+ * ==========================
+ * CSS equivalents of MT's React component patterns, translated from Tailwind classes.
+ * Drop this file into static/ and link it in base.html after style.css.
+ *
+ * Source: MT monorepo dashboard components + Turbogrid design tokens
+ * Generated from: Page.tsx, Card.tsx, Modal.tsx, Tabs.tsx, Badge.tsx, Alert.tsx, EmptyState.tsx
+ */
+
+/* ============================================================
+   0. DESIGN TOKENS (matches Turbogrid variables.css + MT Tailwind)
+   ============================================================ */
+:root {
+  /* Colors — from MT's Tailwind config + Turbogrid */
+  --mt-blue-50: #f2f7ff;
+  --mt-blue-100: #dde9f7;
+  --mt-blue-500: #386fb1;
+  --mt-blue-700: #204571;
+
+  --mt-green-50: #e4f3ec;
+  --mt-green-100: #bee6d5;
+  --mt-green-500: #008060;
+  --mt-green-700: #00473c;
+
+  --mt-red-50: #ffe8ec;
+  --mt-red-100: #ffced3;
+  --mt-red-500: #d4234a;
+  --mt-red-700: #7c1b3d;
+
+  --mt-yellow-50: #fefce8;
+  --mt-yellow-100: #fef9c3;
+  --mt-yellow-300: #fcd34d;
+  --mt-yellow-700: #92400e;
+
+  --mt-orange-50: #fff7ed;
+  --mt-orange-100: #ffedd5;
+  --mt-orange-700: #c2410c;
+
+  --mt-purple-50: #faf5ff;
+  --mt-purple-100: #f3e8ff;
+  --mt-purple-700: #7e22ce;
+  --mt-purple-800: #6b21a8;
+
+  --mt-gray-25: #fafafa;
+  --mt-gray-50: #f7f7f6;
+  --mt-gray-100: #deddd7;
+  --mt-gray-400: #aaa9a4;
+  --mt-gray-500: #8a8985;
+  --mt-gray-700: #575757;
+  --mt-gray-800: #303030;
+  --mt-gray-900: #222222;
+
+  --mt-white: #ffffff;
+  --mt-border-alpha: rgba(0, 0, 0, 0.12);
+  --mt-border-alpha-2: rgba(0, 0, 0, 0.2);
+
+  /* Spacing */
+  --mt-spacing-1: 0.25rem;  /* 4px */
+  --mt-spacing-2: 0.5rem;   /* 8px */
+  --mt-spacing-3: 0.75rem;  /* 12px */
+  --mt-spacing-4: 1rem;     /* 16px */
+  --mt-spacing-5: 1.25rem;  /* 20px */
+  --mt-spacing-6: 1.5rem;   /* 24px */
+  --mt-spacing-8: 2rem;     /* 32px */
+
+  /* Radius */
+  --mt-radius-sm: 0.125rem; /* 2px */
+  --mt-radius-md: 0.25rem;  /* 4px */
+  --mt-radius-lg: 0.5rem;   /* 8px */
+
+  /* Typography */
+  --mt-text-xs: 0.75rem;    /* 12px */
+  --mt-text-sm: 0.875rem;   /* 14px */
+  --mt-text-base: 1rem;     /* 16px */
+  --mt-text-lg: 1.125rem;   /* 18px */
+  --mt-text-xl: 1.25rem;    /* 20px */
+}
+
+
+/* ============================================================
+   1. PAGE HEADER — from Page.tsx PageHeaderContainer
+   Source: monorepo/.../Page/Page.tsx lines 67-89
+   Tailwind: bg-background-default pl-6 pr-4 pt-4 text-text-default
+             border-b border-alpha-black-100
+   ============================================================ */
+.page-header-container {
+  background-color: var(--mt-white);
+  padding: var(--mt-spacing-4) var(--mt-spacing-4) 0 var(--mt-spacing-6);
+  color: var(--mt-gray-800);
+  border-bottom: 1px solid var(--mt-border-alpha);
+}
+
+.page-header-container--no-border {
+  border-bottom: none;
+}
+
+.page-header-container--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/*
+ * PageHeaderBody — from Page.tsx lines 129-136
+ * Tailwind: Stack component (flex flex-col)
+ * gap-2 when subtitle, gap-4 otherwise
+ * pb-2 when no sections, pb-5 when no sections and no subtitle
+ */
+.page-header-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mt-spacing-4);
+}
+
+.page-header-body--with-subtitle {
+  gap: var(--mt-spacing-2);
+}
+
+.page-header-body--no-sections {
+  padding-bottom: var(--mt-spacing-2);
+}
+
+.page-header-body--no-sections-no-subtitle {
+  padding-bottom: var(--mt-spacing-5);
+}
+
+/*
+ * PageHeader title row — from PageHeader.tsx lines 13-64
+ * Tailwind: flex w-full flex-wrap items-center justify-between gap-3
+ */
+.page-header-title-row {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--mt-spacing-3);
+}
+
+.page-header-title-row .page-header-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--mt-spacing-4);
+}
+
+.page-header-title-row h1 {
+  font-size: var(--mt-text-xl);
+  font-weight: 600;
+  line-height: 1.4;
+  max-width: 40ch;
+  margin: 0;
+}
+
+.page-header-title-row .page-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--mt-spacing-4);
+}
+
+/*
+ * PageSubtitle — from Page.tsx lines 138-144
+ * Tailwind: pb-4 text-xs text-gray-500
+ */
+.page-header-subtitle {
+  padding-bottom: var(--mt-spacing-4);
+  font-size: var(--mt-text-xs);
+  color: var(--mt-gray-500);
+}
+
+
+/* ============================================================
+   2. PAGE BODY — from PageBody.tsx lines 13-28
+   Source: monorepo/.../Page/PageBody.tsx
+   Tailwind: flex flex-col gap-default px-8 py-6
+   ============================================================ */
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mt-spacing-4);
+  padding: var(--mt-spacing-6) var(--mt-spacing-8);
+  background-color: var(--mt-gray-25);
+  min-height: 0;
+}
+
+.page-body--full-height {
+  min-height: calc(100dvh - var(--header-height, 78px));
+}
+
+
+/* ============================================================
+   3. BREADCRUMBS — from Breadcrumbs.tsx lines 20-37
+   Source: monorepo/.../Breadcrumbs/Breadcrumbs.tsx
+   Tailwind: flex items-center / text-gray-500 / mx-1 text-gray-400
+   ============================================================ */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  padding-bottom: var(--mt-spacing-4);
+  font-size: var(--mt-text-xs);
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  color: var(--mt-gray-500);
+}
+
+.breadcrumb-item a {
+  color: var(--mt-blue-500);
+  text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  margin: 0 var(--mt-spacing-1);
+  color: var(--mt-gray-400);
+}
+
+
+/* ============================================================
+   4. TABS — from Tabs.tsx lines 82-188
+   Source: monorepo/.../Tabs/Tabs.tsx
+   Tailwind: border-b border-alpha-black-50
+             border-b-3 border-transparent text-gray-500 hover:text-gray-700
+             selected: border-blue-500 text-gray-700
+   ============================================================ */
+.tab-strip {
+  width: 100%;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.tab-strip--no-border {
+  border-bottom: none;
+}
+
+.tab-strip-inner {
+  display: flex;
+  gap: var(--mt-spacing-2);
+  margin-bottom: -1px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--mt-gray-500);
+  cursor: pointer;
+  font-size: var(--mt-text-sm);
+  font-weight: 500;
+  padding: var(--mt-spacing-2) var(--mt-spacing-3);
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--mt-gray-700);
+}
+
+.tab-btn[aria-selected="true"],
+.tab-btn.active {
+  border-bottom-color: var(--mt-blue-500);
+  color: var(--mt-gray-700);
+}
+
+.tab-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+
+/* ============================================================
+   5. CARD — from Card.tsx lines 13-101
+   Source: monorepo/.../Card/Card.tsx
+   Tailwind: flex flex-col gap-4 rounded-lg border border-alpha-black-100 bg-white p-4
+   ============================================================ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mt-spacing-4);
+  border-radius: var(--mt-radius-lg);
+  border: 1px solid var(--mt-border-alpha);
+  background-color: var(--mt-white);
+  padding: var(--mt-spacing-4);
+}
+
+.card-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: var(--mt-spacing-4);
+}
+
+.card-heading {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-size: var(--mt-text-base);
+  font-weight: 500;
+}
+
+.card-description {
+  font-size: var(--mt-text-xs);
+  font-weight: 500;
+  color: var(--mt-gray-400);
+}
+
+.card-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--mt-spacing-2);
+}
+
+.card-content {
+  /* No default styles — container only */
+}
+
+.card-footer {
+  /* No default styles — container only */
+}
+
+
+/* ============================================================
+   6. MODAL — from Modal.tsx lines 1-196
+   Source: monorepo/.../Modal/Modal.tsx
+   Tailwind overlay: fixed inset-0 bg-alpha-black-2 backdrop-blur-sm
+   Tailwind container: rounded-lg border border-alpha-black-1 bg-white shadow-md
+   Tailwind header: flex flex-row justify-between border-b border-gray-100 p-4
+   Tailwind body: border-b border-alpha-black-100 p-4
+   Tailwind footer: flex items-center justify-between p-4
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--mt-border-alpha-2);
+  padding: 0 var(--mt-spacing-4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-panel {
+  position: relative;
+  z-index: 1002;
+  width: 100%;
+  max-width: 32rem; /* max-w-lg */
+  overflow: hidden;
+  border-radius: var(--mt-radius-lg);
+  border: 1px solid var(--mt-border-alpha);
+  background-color: var(--mt-white);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  outline: none;
+}
+
+.modal-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--mt-gray-100);
+  padding: var(--mt-spacing-4);
+}
+
+.modal-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mt-spacing-2);
+}
+
+.modal-title {
+  font-size: var(--mt-text-base);
+  font-weight: 500;
+}
+
+.modal-description {
+  font-size: var(--mt-text-xs);
+  font-weight: 500;
+  color: var(--mt-gray-500);
+}
+
+.modal-body {
+  border-bottom: 1px solid var(--mt-border-alpha);
+  padding: var(--mt-spacing-4);
+  outline: none;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--mt-spacing-4);
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: var(--mt-spacing-2);
+}
+
+
+/* ============================================================
+   7. BADGE — from Badge.tsx lines 51-67
+   Source: monorepo/.../Badge/Badge.tsx
+   Tailwind: flex h-6 items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  height: 1.5rem;
+  align-items: center;
+  gap: var(--mt-spacing-1);
+  white-space: nowrap;
+  border-radius: var(--mt-radius-md);
+  border: 1px solid;
+  padding: 0.125rem var(--mt-spacing-2);
+  font-size: var(--mt-text-xs);
+  font-weight: 500;
+}
+
+/* Badge variants — from Badge.tsx getBadgeColor() lines 24-44 */
+.badge--default {
+  background-color: var(--mt-gray-50);
+  color: var(--mt-gray-700);
+  border-color: var(--mt-gray-100);
+}
+
+.badge--cool {
+  background-color: var(--mt-blue-50);
+  color: var(--mt-blue-700);
+  border-color: var(--mt-blue-100);
+}
+
+.badge--warm {
+  background-color: var(--mt-orange-50);
+  color: var(--mt-orange-700);
+  border-color: var(--mt-orange-100);
+}
+
+.badge--purple,
+.badge--internal {
+  background-color: var(--mt-purple-50);
+  color: var(--mt-purple-700);
+  border-color: var(--mt-purple-100);
+}
+
+.badge--success {
+  background-color: var(--mt-green-50);
+  color: var(--mt-green-700);
+  border-color: var(--mt-green-100);
+}
+
+.badge--warning {
+  background-color: var(--mt-yellow-50);
+  color: var(--mt-yellow-700);
+  border-color: var(--mt-yellow-100);
+}
+
+.badge--critical {
+  background-color: var(--mt-red-50);
+  color: var(--mt-red-700);
+  border-color: var(--mt-red-100);
+}
+
+
+/* ============================================================
+   8. ALERT — from Alert.tsx lines 29-111
+   Source: monorepo/.../Alert/Alert.tsx
+   Tailwind: flex gap-4 rounded border px-4 py-2 text-xs font-medium text-gray-700
+   ============================================================ */
+.alert {
+  display: flex;
+  gap: var(--mt-spacing-4);
+  border-radius: var(--mt-radius-md);
+  border: 1px solid;
+  padding: var(--mt-spacing-2) var(--mt-spacing-4);
+  font-size: var(--mt-text-xs);
+  font-weight: 500;
+  color: var(--mt-gray-700);
+  justify-content: space-between;
+}
+
+.alert-content {
+  display: flex;
+  gap: var(--mt-spacing-2);
+  align-items: center;
+  width: 100%;
+}
+
+.alert--centered {
+  justify-content: center;
+}
+
+.alert--centered .alert-content {
+  width: auto;
+}
+
+/* Alert variants — from Alert.tsx switch lines 44-74 */
+.alert--info {
+  background-color: var(--mt-blue-50);
+  border-color: var(--mt-blue-100);
+}
+.alert--info .alert-icon { color: var(--mt-blue-500); }
+
+.alert--success {
+  background-color: var(--mt-green-50);
+  border-color: var(--mt-green-100);
+}
+.alert--success .alert-icon { color: var(--mt-green-500); }
+
+.alert--warning {
+  background-color: var(--mt-yellow-50);
+  border-color: var(--mt-yellow-100);
+}
+.alert--warning .alert-icon { color: var(--mt-yellow-300); }
+
+.alert--danger {
+  background-color: var(--mt-red-50);
+  border-color: var(--mt-red-100);
+}
+.alert--danger .alert-icon { color: var(--mt-red-500); }
+
+.alert-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--mt-gray-500);
+  display: flex;
+  align-items: center;
+}
+.alert-dismiss:hover {
+  color: var(--mt-gray-800);
+}
+
+
+/* ============================================================
+   9. EMPTY STATE — from EmptyState.tsx + Surface.tsx + surface.css
+   Source: monorepo/.../EmptyState/EmptyState.tsx
+   Source: monorepo/.../Surface/Surface.tsx
+   Source: monorepo/.../common/stylesheets/ui/surface.css
+   Tailwind: flex h-full flex-col items-center justify-center gap-3
+             rounded-lg border border-dashed border-alpha-black-200 bg-white p-6
+   ============================================================ */
+.empty-state {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mt-spacing-3);
+  border-radius: var(--mt-radius-lg);
+  border: 1px dashed var(--mt-border-alpha-2);
+  background-color: var(--mt-white);
+  padding: var(--mt-spacing-6);
+}
+
+.empty-state-icon {
+  margin-bottom: var(--mt-spacing-1);
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--mt-gray-400);
+}
+
+.empty-state-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mt-spacing-4);
+  text-align: center;
+}
+
+.empty-state-title {
+  font-size: var(--mt-text-lg);
+  font-weight: 500;
+  color: var(--mt-gray-800);
+  margin: 0;
+}
+
+.empty-state-description {
+  max-width: 28rem;
+  font-size: var(--mt-text-sm);
+  color: var(--mt-gray-700);
+  text-wrap: pretty;
+}
+
+.empty-state-links {
+  display: flex;
+  align-items: center;
+  gap: var(--mt-spacing-2);
+}
+
+/* Full-height variant for page bodies */
+.page-body--full-height > .empty-state {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
+}

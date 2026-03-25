@@ -1,11 +1,9 @@
 {% extends "base.html" %}
 {% block nav_listen %}active{% endblock %}
 {% block title %}Webhook Listener — MT Dataloader{% endblock %}
+{% block title_display %}Webhook Listener{% endblock %}
 
 {% block content %}
-<div class="listen-container">
-    <h2>Webhook Listener</h2>
-
     {% if tunnel_url %}
     <div class="tunnel-banner tunnel-ok">
         <strong>Tunnel detected:</strong>
@@ -32,7 +30,7 @@
     <div class="listen-toolbar">
         <div class="listen-filter">
             <label for="run-filter">Filter by run:</label>
-            <select id="run-filter">
+            <select id="run-filter" class="input input-border">
                 <option value="">All webhooks</option>
                 {% for rid in run_ids %}
                 <option value="{{ rid }}"
@@ -58,7 +56,6 @@
             <p class="empty-state" id="webhook-empty">Waiting for webhooks&hellip;</p>
         {% endif %}
     </div>
-</div>
 
 <script>
 (function() {

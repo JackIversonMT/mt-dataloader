@@ -1,0 +1,59 @@
+/* Scoped reset — ensures Turbogrid renders consistently regardless of host app styles. */
+
+.turbogrid {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+  color: var(--text-default);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  turbo-frame {
+    display: contents;
+  }
+
+  .field_with_errors {
+    display: contents;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+    background-color: transparent;
+    border-radius: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  img, svg {
+    display: block;
+    vertical-align: middle;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  [role="button"], button {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+}
