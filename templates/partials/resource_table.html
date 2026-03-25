@@ -58,7 +58,7 @@
                     </div>
                     <div role="rowgroup" class="ui-table-body">
                     {% for item in phase_items %}
-                        <div role="row" class="ui-table-row linked"
+                        <div role="row" class="ui-table-row linked{% if item.action == 'matched' %} row--reconciled{% elif item.action == 'update' %} row--will-update{% endif %}{% if item.staged %} row--staged{% endif %}"
                              hx-get="/api/resource-detail?session_token={{ session_token }}&ref={{ item.typed_ref|urlencode }}"
                              hx-target="#drawer-content"
                              hx-swap="innerHTML"
@@ -77,16 +77,10 @@
                                 {% endif %}
                             </div>
                             <div role="cell" class="ui-table-cell truncate">
-                                {% if item.display_name %}
-                                <span class="resource-display-name" title="{{ item.typed_ref }}">{{ item.display_name }}</span>
-                                {% else %}
-                                <code class="resource-ref-fallback" title="{{ item.typed_ref }}">{{ item.typed_ref }}</code>
-                                {% endif %}
-                                {% if item.deletable %}
-                                <span class="cleanup-icon deletable" title="Deletable after run">&#x1f5d1;</span>
-                                {% else %}
-                                <span class="cleanup-icon persistent" title="Persistent — cannot be deleted via API">&#x1f512;</span>
-                                {% endif %}
+                                {% set ia_hx_target = "#resource-table" %}
+                                {% set ia_hx_swap = "outerHTML" %}
+                                {% set ia_hx_indicator = "closest .ui-table-row" %}
+                                {% include "partials/preview_resource_row.html" %}
                             </div>
                             <div role="cell" class="ui-table-cell">
                                 {% if item.metadata and item.metadata.get("_flow_optional_group") %}

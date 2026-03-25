@@ -12,7 +12,7 @@ from modern_treasury import AsyncModernTreasury
 from sse_starlette import EventSourceResponse, ServerSentEvent
 
 from engine import execute, generate_run_id
-from handlers import build_handler_dispatch
+from handlers import build_handler_dispatch, build_update_dispatch
 from helpers import error_html, error_response, get_templates
 from models import DisplayPhase
 from session import sessions
@@ -94,6 +94,7 @@ async def execute_stream(
                 organization_id=session.org_id,
             ) as client:
                 handler_dispatch = build_handler_dispatch(client, emit_sse)
+                update_dispatch = build_update_dispatch(client, emit_sse)
                 try:
                     manifest = await execute(
                         config=session.config,
@@ -106,6 +107,8 @@ async def execute_stream(
                         runs_dir=settings.runs_dir,
                         on_resource_created=index_resource,
                         skip_refs=session.skip_refs or None,
+                        update_refs=session.update_refs or None,
+                        update_dispatch=update_dispatch,
                     )
                     html = templates.get_template(
                         "partials/run_complete.html"

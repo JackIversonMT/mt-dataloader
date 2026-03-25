@@ -32,6 +32,7 @@ from models import HandlerResult
 __all__ = [
     "DELETABILITY",
     "build_handler_dispatch",
+    "build_update_dispatch",
     "create_connection",
     "create_legal_entity",
     "create_ledger",
@@ -58,6 +59,7 @@ __all__ = [
 
 EmitFn = Callable[[str, str, dict[str, Any]], Awaitable[None]]
 HandlerFn = Callable[..., Awaitable[HandlerResult]]
+UpdateHandlerFn = Callable[..., Awaitable[HandlerResult]]
 
 # ---------------------------------------------------------------------------
 # Deletability mapping (resource_type -> can be deleted via API)
@@ -814,6 +816,72 @@ async def transition_ledger_transaction(
 # ---------------------------------------------------------------------------
 # Dispatch table factory
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Update handlers (reconciled resources with edited payloads)
+# ---------------------------------------------------------------------------
+
+_STRIP_ON_UPDATE: dict[str, set[str]] = {
+    "internal_account": {"connection_id", "currency"},
+    "legal_entity": {"legal_entity_type"},
+    "counterparty": set(),
+    "ledger": set(),
+    "ledger_account": {"currency", "ledger_id", "normal_balance"},
+    "ledger_account_category": {"currency", "ledger_id", "normal_balance"},
+}
+
+
+async def _generic_update(
+    client: AsyncModernTreasury,
+    emit_sse: EmitFn,
+    resolved: dict,
+    *,
+    resource_id: str,
+    resource_type: str,
+    sdk_attr: str,
+    idempotency_key: str,
+    typed_ref: str = "",
+) -> HandlerResult:
+    for key in _STRIP_ON_UPDATE.get(resource_type, set()):
+        resolved.pop(key, None)
+    logger.bind(ref=typed_ref).info("Updating {} {}", resource_type, resource_id[:12])
+    sdk_resource = getattr(client, sdk_attr)
+    result = await sdk_resource.update(resource_id, **resolved)
+    return HandlerResult(
+        created_id=result.id,
+        resource_type=resource_type,
+        deletable=DELETABILITY.get(resource_type, False),
+    )
+
+
+def build_update_dispatch(
+    client: AsyncModernTreasury,
+    emit_sse: EmitFn,
+) -> dict[str, UpdateHandlerFn]:
+    """Build the update handler dispatch table.
+
+    Each handler calls ``.update(resource_id, ...)`` instead of ``.create()``,
+    stripping immutable fields per resource type.
+    """
+    bind = functools.partial
+
+    def _bind(resource_type: str, sdk_attr: str) -> UpdateHandlerFn:
+        return bind(
+            _generic_update, client, emit_sse,
+            resource_type=resource_type, sdk_attr=sdk_attr,
+        )
+
+    return {
+        "internal_account": _bind("internal_account", "internal_accounts"),
+        "legal_entity": _bind("legal_entity", "legal_entities"),
+        "counterparty": _bind("counterparty", "counterparties"),
+        "ledger": _bind("ledger", "ledgers"),
+        "ledger_account": _bind("ledger_account", "ledger_accounts"),
+        "ledger_account_category": _bind(
+            "ledger_account_category", "ledger_account_categories",
+        ),
+    }
 
 
 def build_handler_dispatch(

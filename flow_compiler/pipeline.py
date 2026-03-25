@@ -145,7 +145,18 @@ def pass_emit_resources(ctx: CompilationContext) -> CompilationContext:
     base_dict = ctx.authoring.config.model_dump(exclude_none=True)
 
     for section, items in ctx.extra_resources:
-        base_dict.setdefault(section, []).extend(items)
+        existing = base_dict.setdefault(section, [])
+        seen_refs = {
+            item.get("ref") for item in existing
+            if isinstance(item, dict) and item.get("ref")
+        }
+        for item in items:
+            ref = item.get("ref") if isinstance(item, dict) else None
+            if ref and ref in seen_refs:
+                continue
+            existing.append(item)
+            if ref:
+                seen_refs.add(ref)
 
     base_dict["funds_flows"] = []
 

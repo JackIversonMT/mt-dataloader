@@ -1439,3 +1439,50 @@ svg.lock-icon { display: none; }
 .drawer-section-title:first-child {
     margin-top: 0;
 }
+
+/* --- IA connection selector (inline in resource table) --- */
+.ia-connection-selector {
+    display: inline-flex;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.ia-conn-select {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ia-conn-select:hover {
+    border-color: var(--primary);
+}
+.ia-conn-select:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* Reconciled row — same opacity pattern as .resource-row.staged */
+.ui-table-row.row--reconciled { opacity: 0.6; }
+.ui-table-row.row--reconciled:hover { opacity: 0.85; }
+
+/* Will-update row — same border-left pattern as .warning-badge */
+.ui-table-row.row--will-update {
+    border-left: 3px solid var(--status-waiting);
+}
+
+/* Staged row — border-left using existing --status-staged color */
+.ui-table-row.row--staged {
+    border-left: 3px solid var(--status-staged);
+}
+
+/* Staged chip — follows recon-chip pattern */
+.recon-chip-staged {
+    background: color-mix(in srgb, var(--status-staged) 15%, transparent);
+    color: var(--status-staged);
+}

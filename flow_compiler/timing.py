@@ -258,10 +258,7 @@ def compute_effective_dates(
         effective_str = effective.isoformat()
 
         step_type = step.get("type", "")
-        if step_type in (
-            "payment_order", "expected_payment",
-            "incoming_payment_detail", "return", "reversal",
-        ):
+        if step_type in ("payment_order", "return", "reversal"):
             if not step.get("effective_date"):
                 step["effective_date"] = effective_str
 

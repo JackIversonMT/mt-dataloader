@@ -67,7 +67,7 @@
             </div>
             <div role="rowgroup" class="ui-table-body">
                 {% for item in items %}
-                <div role="row" class="ui-table-row linked"
+                <div role="row" class="ui-table-row linked{% if item.action == 'matched' %} row--reconciled{% elif item.action == 'update' %} row--will-update{% endif %}{% if item.staged %} row--staged{% endif %}"
                      data-url="/api/resource-detail?session_token={{ session_token }}&ref={{ item.typed_ref|urlencode }}"
                      hx-get="/api/resource-detail?session_token={{ session_token }}&ref={{ item.typed_ref|urlencode }}"
                      hx-target="#drawer-content"
@@ -82,16 +82,7 @@
                         <span class="type-badge type-{{ item.resource_type }}">{{ item.resource_type }}</span>
                     </div>
                     <div role="cell" class="ui-table-cell truncate">
-                        {% if item.display_name %}
-                        <span class="resource-display-name" title="{{ item.typed_ref }}">{{ item.display_name }}</span>
-                        {% else %}
-                        <code class="resource-ref-fallback" title="{{ item.typed_ref }}">{{ item.typed_ref.split(".", 1)[1] if "." in item.typed_ref else item.typed_ref }}</code>
-                        {% endif %}
-                        {% if item.deletable %}
-                        <span class="cleanup-icon deletable" title="Deletable">&#x1f5d1;</span>
-                        {% else %}
-                        <span class="cleanup-icon persistent" title="Persistent">&#x1f512;</span>
-                        {% endif %}
+                        {% include "partials/preview_resource_row.html" %}
                     </div>
                     <div role="cell" class="ui-table-cell" style="width: 180px; flex: none;">
                         {% if item.metadata and item.metadata.get("_flow_optional_group") %}

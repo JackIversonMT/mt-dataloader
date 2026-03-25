@@ -35,6 +35,8 @@ class SessionState:
     discovery: DiscoveryResult | None = None
     reconciliation: ReconciliationResult | None = None
     skip_refs: set[str] = field(default_factory=set)
+    update_refs: dict[str, str] = field(default_factory=dict)
+    payload_overrides: set[str] = field(default_factory=set)
     created_at: float = field(default_factory=time.time)
     flow_ir: list[FlowIR] | None = None
     expanded_flows: list | None = None

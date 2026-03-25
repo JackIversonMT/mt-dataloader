@@ -27,6 +27,8 @@ from engine import (
 )
 from flow_compiler import AuthoringConfig, compile_to_plan
 from helpers import (
+    UPDATABLE_RESOURCE_TYPES,
+    build_available_connections,
     build_discovered_by_type,
     build_discovered_id_lookup,
     build_flow_grouped_preview,
@@ -187,7 +189,10 @@ async def validate(
         return error_response("Reference Error", str(e))
 
     resource_map = {typed_ref_for(r): r for r in all_resources(config)}
-    preview_items = build_preview(batches, resource_map)
+    preview_items = build_preview(
+        batches, resource_map,
+        skip_refs=skip_refs, reconciliation=reconciliation,
+    )
 
     config_json_text = json.dumps(
         json.loads(raw_json), indent=2, ensure_ascii=False
@@ -247,6 +252,7 @@ async def validate(
             "discovery": discovery,
             "config_json_text": config_json_text,
             "discovered_by_type": build_discovered_by_type(discovery),
+            "available_connections": build_available_connections(config, discovery),
         },
     )
 
@@ -357,7 +363,10 @@ async def revalidate(
         return error_response("Reference Error", str(e))
 
     resource_map = {typed_ref_for(r): r for r in all_resources(config)}
-    preview_items = build_preview(batches, resource_map)
+    preview_items = build_preview(
+        batches, resource_map,
+        skip_refs=skip_refs, reconciliation=reconciliation,
+    )
 
     config_json_text = json.dumps(
         json.loads(raw_json), indent=2, ensure_ascii=False
@@ -416,6 +425,7 @@ async def revalidate(
             "config_json_text": config_json_text,
             "discovered_by_type": build_discovered_by_type(discovery),
             "has_funds_flows": bool(flow_irs_reval),
+            "available_connections": build_available_connections(config, discovery),
         },
     )
 
@@ -449,6 +459,9 @@ async def preview_page(request: Request):
                 "config_json_text": session.config_json_text,
                 "has_funds_flows": True,
                 "mermaid_diagrams": session.mermaid_diagrams or [],
+                "available_connections": build_available_connections(
+                    session.config, session.discovery,
+                ),
             },
         )
 
@@ -469,6 +482,9 @@ async def preview_page(request: Request):
             "config_json_text": session.config_json_text,
             "discovered_by_type": build_discovered_by_type(session.discovery),
             "has_funds_flows": False,
+            "available_connections": build_available_connections(
+                session.config, session.discovery,
+            ),
         },
     )
 
@@ -492,3 +508,207 @@ async def resource_detail_drawer(request: Request):
         "partials/resource_drawer.html",
         {"item": item, "session_token": session_token},
     )
+
+
+@router.post("/api/update-ia-connection", include_in_schema=False)
+async def update_ia_connection(request: Request):
+    """Change an internal account's connection_id, re-reconcile, rebuild preview."""
+    templates = get_templates()
+    form = await request.form()
+    session_token = form.get("session_token", "")
+    typed_ref = form.get("typed_ref", "")
+    new_conn = form.get(f"connection_for_{typed_ref}", "")
+    session = sessions.get(session_token)
+    if not session:
+        return HTMLResponse("<p>Session expired</p>", status_code=404)
+
+    ia_ref = typed_ref.split(".", 1)[1] if "." in typed_ref else typed_ref
+
+    updated = False
+    for ia in session.config.internal_accounts:
+        if ia.ref == ia_ref:
+            ia.connection_id = new_conn
+            updated = True
+            break
+
+    if not updated:
+        return HTMLResponse(f"<p>IA not found: {typed_ref}</p>", status_code=404)
+
+    session.config_json_text = session.config.model_dump_json(
+        indent=2, exclude_none=True,
+    )
+    if session.working_config_json is not None:
+        session.working_config_json = session.config_json_text
+
+    _rereconcile_session(session)
+
+    available_connections = build_available_connections(
+        session.config, session.discovery,
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "partials/resource_table.html",
+        {
+            "session_token": session_token,
+            "preview_items": session.preview_items,
+            "available_connections": available_connections,
+        },
+    )
+
+
+def _rereconcile_session(session: SessionState) -> None:
+    """Re-run reconciliation, rebuild skip_refs/update_refs/batches/preview.
+
+    Called after any change that affects reconciliation state (connection
+    change, payload edit).
+    """
+    skip_refs: set[str] = set()
+    update_refs: dict[str, str] = {}
+
+    if session.discovery is not None:
+        recon = reconcile_config(session.config, session.discovery)
+        session.reconciliation = recon
+
+        for m in recon.matches:
+            if m.use_existing:
+                session.registry.register_or_update(m.config_ref, m.discovered_id)
+                skip_refs.add(m.config_ref)
+
+        for tref in session.payload_overrides:
+            if tref not in skip_refs:
+                continue
+            rtype = tref.split(".", 1)[0] if "." in tref else ""
+            match = next(
+                (m for m in recon.matches if m.config_ref == tref), None,
+            )
+            if match is None:
+                continue
+            if rtype in UPDATABLE_RESOURCE_TYPES:
+                skip_refs.discard(tref)
+                update_refs[tref] = match.discovered_id
+            else:
+                skip_refs.discard(tref)
+
+    session.skip_refs = skip_refs
+    session.update_refs = update_refs
+
+    try:
+        known = set(session.org_registry.refs.keys()) if session.org_registry else None
+        batches = dry_run(session.config, known, skip_refs=skip_refs)
+    except Exception:
+        batches = session.batches
+
+    resource_map = {typed_ref_for(r): r for r in all_resources(session.config)}
+    session.batches = batches
+    session.preview_items = build_preview(
+        batches, resource_map,
+        skip_refs=skip_refs,
+        reconciliation=session.reconciliation,
+        update_refs=update_refs,
+    )
+
+
+def _find_resource_in_config(
+    config: DataLoaderConfig,
+    resource_type: str,
+    ref: str,
+):
+    """Locate a resource object in a DataLoaderConfig by resource_type and ref.
+
+    Returns ``(section_list, index, resource)`` or ``(None, -1, None)``.
+    """
+    for field_name in type(config).model_fields:
+        items = getattr(config, field_name)
+        if not isinstance(items, list):
+            continue
+        for idx, item in enumerate(items):
+            rt = getattr(item, "resource_type", None)
+            if rt == resource_type and getattr(item, "ref", None) == ref:
+                return items, idx, item
+    return None, -1, None
+
+
+@router.post("/api/update-resource-payload", include_in_schema=False)
+async def update_resource_payload(request: Request):
+    """Accept an edited JSON payload for a resource and apply it back.
+
+    If the resource was previously reconciled, returns a warning
+    indicating whether the resource will now be updated in place
+    (updatable types) or created new (non-updatable types).
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return {"status": "error", "detail": "Invalid request body"}
+
+    session_token = body.get("session_token", "")
+    typed_ref = body.get("typed_ref", "")
+    payload_str = body.get("payload", "")
+
+    session = sessions.get(session_token)
+    if not session:
+        return {"status": "error", "detail": "Session expired"}
+
+    if "." not in typed_ref:
+        return {"status": "error", "detail": f"Invalid typed_ref: {typed_ref}"}
+
+    resource_type, ref = typed_ref.split(".", 1)
+
+    try:
+        payload = json.loads(payload_str) if isinstance(payload_str, str) else payload_str
+    except json.JSONDecodeError as exc:
+        return {"status": "error", "detail": f"Invalid JSON: {exc}"}
+
+    section_list, idx, resource = _find_resource_in_config(
+        session.config, resource_type, ref,
+    )
+    if resource is None:
+        return {"status": "error", "detail": f"Resource not found: {typed_ref}"}
+
+    was_reconciled = typed_ref in session.skip_refs or typed_ref in session.update_refs
+
+    payload["ref"] = ref
+
+    model_cls = type(resource)
+    try:
+        updated = model_cls.model_validate(payload)
+    except ValidationError as exc:
+        errors = "; ".join(
+            f"{'.'.join(str(l) for l in e['loc'])}: {e['msg']}" for e in exc.errors()
+        )
+        return {"status": "error", "detail": f"Validation failed: {errors}"}
+
+    section_list[idx] = updated
+
+    session.config_json_text = session.config.model_dump_json(
+        indent=2, exclude_none=True,
+    )
+    if session.working_config_json is not None:
+        session.working_config_json = session.config_json_text
+
+    session.payload_overrides.add(typed_ref)
+    _rereconcile_session(session)
+
+    result: dict[str, str] = {"status": "ok"}
+    if was_reconciled:
+        if typed_ref in session.update_refs:
+            result["warning"] = "will_update"
+            result["detail"] = (
+                "This resource was matched to an existing resource. "
+                "It will be updated instead of skipped."
+            )
+        elif resource_type not in UPDATABLE_RESOURCE_TYPES:
+            result["warning"] = "unreconciled"
+            result["detail"] = (
+                "This resource was matched to an existing resource. "
+                "Editing the payload means it will be created new."
+            )
+        else:
+            result["warning"] = "will_update"
+            result["detail"] = (
+                "This resource was matched to an existing resource. "
+                "It will be updated instead of skipped."
+            )
+
+    return result

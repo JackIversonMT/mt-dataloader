@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterator
 
 from graphlib import TopologicalSorter
+from loguru import logger
 
 from models import (
     DataLoaderConfig,
@@ -83,10 +84,11 @@ class RefRegistry:
         self._store: dict[str, str] = {}
 
     def register(self, typed_ref: str, resource_id: str) -> None:
-        if typed_ref in self._store:
-            raise ValueError(
-                f"Ref '{typed_ref}' already registered "
-                f"(existing: {self._store[typed_ref]}, new: {resource_id})"
+        existing = self._store.get(typed_ref)
+        if existing is not None and existing != resource_id:
+            logger.warning(
+                "Ref '{}' already registered (existing: {}, new: {}) — updating",
+                typed_ref, existing, resource_id,
             )
         self._store[typed_ref] = resource_id
 
@@ -521,14 +523,22 @@ async def execute(
     runs_dir: str = "runs",
     on_resource_created: ResourceCreatedFn | None = None,
     skip_refs: set[str] | None = None,
+    update_refs: dict[str, str] | None = None,
+    update_dispatch: dict[str, HandlerFn] | None = None,
 ) -> RunManifest:
     """Execute the DAG with intra-batch concurrency.
 
     Baseline refs (in the registry but not in the config) are auto-drained
     from each batch.  Uses ``asyncio.TaskGroup`` for proper cancellation
     of sibling tasks on failure.
+
+    Resources in *update_refs* are routed through *update_dispatch* with
+    the existing resource ID so they call ``.update()`` instead of
+    ``.create()``.
     """
     _skip = skip_refs or set()
+    _update = update_refs or {}
+    _update_dispatch = update_dispatch or {}
     ts, resource_map = build_dag(config)
     ts.prepare()
 
@@ -573,12 +583,21 @@ async def execute(
                             await emit_sse("staged", typed_ref, {"display_name": dn} if dn else {})
                             return
 
-                        handler = handler_dispatch[resource.resource_type]
-                        result = await handler(
-                            resolved,
-                            idempotency_key=f"{run_id}:{typed_ref}",
-                            typed_ref=typed_ref,
-                        )
+                        if typed_ref in _update and resource.resource_type in _update_dispatch:
+                            handler = _update_dispatch[resource.resource_type]
+                            result = await handler(
+                                resolved,
+                                resource_id=_update[typed_ref],
+                                idempotency_key=f"{run_id}:{typed_ref}",
+                                typed_ref=typed_ref,
+                            )
+                        else:
+                            handler = handler_dispatch[resource.resource_type]
+                            result = await handler(
+                                resolved,
+                                idempotency_key=f"{run_id}:{typed_ref}",
+                                typed_ref=typed_ref,
+                            )
                 except Exception as exc:
                     exc._failed_typed_ref = typed_ref  # type: ignore[attr-defined]
                     raise

@@ -448,6 +448,10 @@ class InternalAccountConfig(MetadataMixin, _BaseResourceConfig):
     name: str
     party_name: str
     currency: Literal["USD", "CAD", "USDC", "USDG"]
+    status: Literal[
+        "active", "closed", "pending_closure",
+        "pending_activation", "suspended",
+    ] | None = None
     counterparty_id: RefStr | None = None
     legal_entity_id: RefStr | None = None
     party_address: AddressConfig | None = None

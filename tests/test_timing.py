@@ -304,3 +304,22 @@ class TestComputeEffectiveDates:
             return flow["steps"][0]["effective_date"]
 
         assert run() == run()
+
+    def test_ipd_no_effective_date(self):
+        """IPDs should not get effective_date stamped (API doesn't accept it)."""
+        steps = [
+            {"step_id": "ipd", "type": "incoming_payment_detail", "payment_type": "ach",
+             "depends_on": []},
+        ]
+        flow = self._make_flow_dict(steps)
+        compute_effective_dates(flow, seed=1)
+        assert "effective_date" not in flow["steps"][0]
+
+    def test_expected_payment_no_effective_date(self):
+        """Expected payments should not get effective_date stamped."""
+        steps = [
+            {"step_id": "ep", "type": "expected_payment", "depends_on": []},
+        ]
+        flow = self._make_flow_dict(steps)
+        compute_effective_dates(flow, seed=1)
+        assert "effective_date" not in flow["steps"][0]

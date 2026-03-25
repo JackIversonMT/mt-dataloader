@@ -62,6 +62,11 @@ def _compose_all_recipes(
     Each recipe is applied to the running config so that shared
     infrastructure is emitted once and all flow instances accumulate.
     Returns a merged ``GenerationResult`` with combined outputs.
+
+    The original ``base`` config keeps its ``funds_flows`` intact so
+    that every recipe can look up its pattern flow.  Only the
+    *infrastructure* sections (legal_entities, counterparties, etc.)
+    accumulate across recipes.
     """
     running_config = base
     all_flow_irs: list = []
@@ -71,7 +76,8 @@ def _compose_all_recipes(
 
     for _flow_ref, recipe_dict in recipes.items():
         recipe = GenerationRecipeV1.model_validate(recipe_dict)
-        gen = generate_from_recipe(recipe, base_config=running_config)
+        merged = _merge_infra_with_flows(running_config, base)
+        gen = generate_from_recipe(recipe, base_config=merged)
         running_config = gen.config
         all_flow_irs.extend(gen.flow_irs)
         all_expanded_flows.extend(gen.expanded_flows)
@@ -86,6 +92,24 @@ def _compose_all_recipes(
         flow_irs=all_flow_irs,
         expanded_flows=all_expanded_flows,
     )
+
+
+def _merge_infra_with_flows(
+    running: DataLoaderConfig,
+    original: DataLoaderConfig,
+) -> DataLoaderConfig:
+    """Merge accumulated infrastructure from ``running`` with the
+    original ``funds_flows`` so subsequent recipes can find their
+    flow patterns.
+
+    After the first recipe, ``running.funds_flows`` is empty because
+    ``emit_dataloader_config`` clears it.  We restore from ``original``.
+    """
+    if running.funds_flows:
+        return running
+    data = running.model_dump(exclude_none=True)
+    data["funds_flows"] = [f.model_dump(exclude_none=True) for f in original.funds_flows]
+    return DataLoaderConfig.model_validate(data)
 
 
 async def _parse_recipe(
@@ -551,7 +575,12 @@ async def recipe_to_working_config(request: Request):
     batches = dry_run(gen.config, known, skip_refs=session.skip_refs)
     session.batches = batches
     resource_map = {typed_ref_for(r): r for r in all_resources(gen.config)}
-    session.preview_items = build_preview(batches, resource_map)
+    session.preview_items = build_preview(
+        batches, resource_map,
+        skip_refs=session.skip_refs,
+        reconciliation=session.reconciliation,
+        update_refs=session.update_refs,
+    )
 
     recipe_count = len(session.generation_recipes)
     return {

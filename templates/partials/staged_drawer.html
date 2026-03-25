@@ -47,7 +47,8 @@
     if (el && typeof initMonacoEditor === 'function') {
         initMonacoEditor(el, {
             value: {{ payload | tojson(indent=2) | tojson }},
-            readOnly: true
+            readOnly: true,
+            useConfigSchema: false
         });
     }
 })();

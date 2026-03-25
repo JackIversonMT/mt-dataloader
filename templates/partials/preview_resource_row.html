@@ -1,0 +1,41 @@
+{# Shared name-cell contents for preview resource rows.
+   Expected context: item, session_token, available_connections (optional),
+   ia_hx_target (optional), ia_hx_swap (optional).
+#}
+{% if item.display_name %}
+<span class="resource-display-name" title="{{ item.typed_ref }}">{{ item.display_name }}</span>
+{% else %}
+<code class="resource-ref-fallback" title="{{ item.typed_ref }}">{{ item.typed_ref.split(".", 1)[1] if "." in item.typed_ref else item.typed_ref }}</code>
+{% endif %}
+{% if item.deletable %}
+<span class="cleanup-icon deletable" title="Deletable">&#x1f5d1;</span>
+{% else %}
+<span class="cleanup-icon persistent" title="Persistent">&#x1f512;</span>
+{% endif %}
+{% if item.action == 'matched' %}
+<span class="recon-chip recon-chip-existing" title="Matched to {{ item.reconciled_name }}" style="margin-left:6px">existing</span>
+{% elif item.action == 'update' %}
+<span class="chip chip--warning" title="Will update {{ item.reconciled_name }}" style="margin-left:6px">will update</span>
+{% endif %}
+{% if item.staged %}
+<span class="recon-chip recon-chip-staged" title="Staged — will not execute automatically" style="margin-left:6px">staged</span>
+{% endif %}
+{% if item.resource_type == "internal_account" and available_connections is defined and available_connections %}
+<span class="ia-connection-selector" onclick="event.stopPropagation()">
+    <select class="ia-conn-select"
+            name="connection_for_{{ item.typed_ref }}"
+            hx-post="/api/update-ia-connection"
+            hx-vals='{"session_token": "{{ session_token }}", "typed_ref": "{{ item.typed_ref }}"}'
+            hx-target="{{ ia_hx_target | default('closest .ui-table-row') }}"
+            hx-swap="{{ ia_hx_swap | default('none') }}"
+            {% if ia_hx_indicator is defined %}hx-indicator="{{ ia_hx_indicator }}"{% endif %}
+            title="Connection for this internal account">
+        {% for conn in available_connections %}
+        <option value="{{ conn.ref_value }}"
+            {% if item.connection_ref == conn.ref_value %} selected{% endif %}>
+            {{ conn.label }}
+        </option>
+        {% endfor %}
+    </select>
+</span>
+{% endif %}

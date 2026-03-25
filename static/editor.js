@@ -90,20 +90,25 @@
     return "vs";
   }
 
+  var _modelCounter = 0;
+
   /**
    * @param {HTMLElement} container  — the div that replaces the textarea
    * @param {Object} opts
+   * @param {boolean} [opts.useConfigSchema] — when true, the DataLoaderConfig
+   *        JSON schema is applied to this editor.  Defaults to true for
+   *        backward compat.  Set to false for payload / freeform editors.
    * @returns {Promise<{editor, getValue, setValue, format, dispose}>}
    */
   window.initMonacoEditor = function (container, opts) {
     opts = opts || {};
     var initialValue = opts.value || "";
+    var wantSchema = opts.useConfigSchema !== false;
 
     return Promise.all([_loadMonaco(), _fetchSchema()]).then(function (results) {
       var monaco = results[0];
       var schema = results[1];
 
-      // Configure JSON schema diagnostics (once globally)
       if (schema && !window._monacoSchemaSet) {
         window._monacoSchemaSet = true;
         monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
@@ -113,16 +118,21 @@
           schemas: [
             {
               uri: "https://dataloader.local/schema.json",
-              fileMatch: ["*"],
+              fileMatch: ["dataloader-config-*"],
               schema: schema,
             },
           ],
         });
       }
 
+      _modelCounter++;
+      var modelUri = wantSchema
+        ? monaco.Uri.parse("inmemory://model/dataloader-config-" + _modelCounter)
+        : monaco.Uri.parse("inmemory://model/freeform-" + _modelCounter);
+      var model = monaco.editor.createModel(initialValue, "json", modelUri);
+
       var editor = monaco.editor.create(container, {
-        value: initialValue,
-        language: "json",
+        model: model,
         theme: _detectTheme(),
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
@@ -185,7 +195,9 @@
           editor.getAction("editor.action.formatDocument").run();
         },
         dispose: function () {
+          var m = editor.getModel();
           editor.dispose();
+          if (m) m.dispose();
         },
       };
 

@@ -47,6 +47,109 @@
     {% endif %}
 </div>
 
+{% if item.payload %}
+<h3 class="drawer-section-title">API Request Body</h3>
+<div id="payload-warning-{{ item.typed_ref | replace('.', '-') }}" class="alert alert--warning" style="display:none; margin-bottom:8px;">
+    <div class="alert-content">
+        <span class="alert-icon">&#x26A0;</span>
+        <span class="alert-message"></span>
+    </div>
+</div>
+<div class="payload-editor-wrap">
+    <div id="payload-monaco-{{ item.typed_ref | replace('.', '-') }}" class="monaco-container" style="height: 280px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+        <pre class="monaco-fallback" style="margin:0;padding:12px;font-size:12px;overflow:auto;height:100%;background:var(--mt-gray-25,#fafafa);">{{ item.payload | tojson(indent=2) }}</pre>
+    </div>
+    <input type="hidden" id="payload-hidden-{{ item.typed_ref | replace('.', '-') }}" value="">
+    <div id="payload-status-{{ item.typed_ref | replace('.', '-') }}" class="json-parse-status"></div>
+    <div class="payload-editor-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="button" class="btn btn-primary btn-xs" id="payload-save-{{ item.typed_ref | replace('.', '-') }}"
+                onclick="savePayload('{{ session_token }}', '{{ item.typed_ref }}')">
+            Save
+        </button>
+        <button type="button" class="btn btn-outline btn-xs" id="payload-format-{{ item.typed_ref | replace('.', '-') }}"
+                onclick="formatPayload()">
+            Format
+        </button>
+    </div>
+</div>
+<script>
+(function() {
+    var safeRef = {{ item.typed_ref | tojson }}.replace(/\./g, '-');
+    var container = document.getElementById('payload-monaco-' + safeRef);
+    var hiddenInput = document.getElementById('payload-hidden-' + safeRef);
+    var statusEl = document.getElementById('payload-status-' + safeRef);
+    if (!container || typeof initMonacoEditor === 'undefined') return;
+
+    var _handle = null;
+    window._payloadHandle = null;
+
+    initMonacoEditor(container, {
+        value: {{ item.payload | tojson(indent=2) | tojson }},
+        useConfigSchema: false,
+        hiddenInput: hiddenInput,
+        onChange: function(val) {
+            val = val.trim();
+            if (!val) { statusEl.textContent = ''; statusEl.className = 'json-parse-status'; return; }
+            try { JSON.parse(val); statusEl.textContent = 'Valid JSON'; statusEl.className = 'json-parse-status valid'; }
+            catch(e) { statusEl.textContent = e.message; statusEl.className = 'json-parse-status invalid'; }
+        }
+    }).then(function(h) {
+        _handle = h;
+        window._payloadHandle = h;
+        var fb = container.querySelector('.monaco-fallback');
+        if (fb) fb.style.display = 'none';
+    });
+
+    window.formatPayload = function() {
+        if (window._payloadHandle) window._payloadHandle.format();
+    };
+
+    window.savePayload = function(token, typedRef) {
+        var val = hiddenInput.value;
+        if (!val && window._payloadHandle) val = window._payloadHandle.getValue();
+        try { JSON.parse(val); } catch(e) {
+            statusEl.textContent = 'Fix JSON errors before saving';
+            statusEl.className = 'json-parse-status invalid';
+            return;
+        }
+        var btn = document.getElementById('payload-save-' + safeRef);
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        fetch('/api/update-resource-payload', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({session_token: token, typed_ref: typedRef, payload: val})
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            var warnEl = document.getElementById('payload-warning-' + safeRef);
+            if (data.status === 'ok') {
+                statusEl.textContent = 'Saved';
+                statusEl.className = 'json-parse-status valid';
+                if (data.warning && warnEl) {
+                    warnEl.querySelector('.alert-message').textContent = data.detail || '';
+                    warnEl.style.display = '';
+                } else if (warnEl) {
+                    warnEl.style.display = 'none';
+                }
+            } else {
+                statusEl.textContent = data.detail || 'Save failed';
+                statusEl.className = 'json-parse-status invalid';
+                if (warnEl) warnEl.style.display = 'none';
+            }
+        })
+        .catch(function(err) {
+            statusEl.textContent = 'Network error';
+            statusEl.className = 'json-parse-status invalid';
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        });
+    };
+})();
+</script>
+{% endif %}
+
 {% if item.metadata %}
 <h3 class="drawer-section-title">Metadata</h3>
 <div class="key-value-table">

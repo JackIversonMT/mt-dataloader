@@ -77,7 +77,8 @@
   if (payloadEl && typeof initMonacoEditor === 'function') {
     initMonacoEditor(payloadEl, {
       value: {{ wh.raw | tojson(indent=2) | tojson }},
-      readOnly: true
+      readOnly: true,
+      useConfigSchema: false
     }).then(function() {
       var fb = payloadEl.querySelector('.monaco-fallback');
       if (fb) fb.style.display = 'none';
@@ -89,7 +90,8 @@
   if (headersEl && typeof initMonacoEditor === 'function') {
     initMonacoEditor(headersEl, {
       value: {{ wh.headers | tojson(indent=2) | tojson }},
-      readOnly: true
+      readOnly: true,
+      useConfigSchema: false
     }).then(function() {
       var fb = headersEl.querySelector('.monaco-fallback');
       if (fb) fb.style.display = 'none';

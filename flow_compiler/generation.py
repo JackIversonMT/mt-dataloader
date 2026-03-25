@@ -532,7 +532,18 @@ def generate_from_recipe(
         if instance_resources:
             expanded = _expand_instance_resources(instance_resources, i, profile)
             for section, items in expanded.items():
-                extra_resources.setdefault(section, []).extend(items)
+                bucket = extra_resources.setdefault(section, [])
+                seen = {
+                    it.get("ref") for it in bucket
+                    if isinstance(it, dict) and it.get("ref")
+                }
+                for item in items:
+                    ref = item.get("ref") if isinstance(item, dict) else None
+                    if ref and ref in seen:
+                        continue
+                    bucket.append(item)
+                    if ref:
+                        seen.add(ref)
 
         if recipe.overrides:
             apply_overrides(flow_dict, recipe.overrides)

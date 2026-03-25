@@ -140,35 +140,162 @@ def extract_display_name(resource: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
+_PAYLOAD_STRIP_KEYS = {"ref", "staged"}
+
+
+def _resource_payload(resource: Any) -> dict:
+    """Serialize a resource config to the shape that will be sent to the API.
+
+    ``$ref:`` strings are kept as-is (unresolved) since we have no
+    registry at preview time.  Internal keys (``ref``, ``staged``) and
+    empty metadata are removed to match what ``resolve_refs`` produces.
+    """
+    data = resource.model_dump(exclude_none=True)
+    for k in _PAYLOAD_STRIP_KEYS:
+        data.pop(k, None)
+    if data.get("metadata") == {}:
+        data.pop("metadata", None)
+    return data
+
+
+UPDATABLE_RESOURCE_TYPES: frozenset[str] = frozenset({
+    "internal_account",
+    "legal_entity",
+    "counterparty",
+    "ledger",
+    "ledger_account",
+    "ledger_account_category",
+})
+
+
 def build_preview(
     batches: list[list[str]],
     resource_map: dict[str, Any],
+    skip_refs: set[str] | None = None,
+    reconciliation: Any | None = None,
+    update_refs: dict[str, str] | None = None,
 ) -> list[dict]:
-    """Transform DAG batches into template-friendly preview data."""
+    """Transform DAG batches into template-friendly preview data.
+
+    When *skip_refs* and *reconciliation* are provided, reconciled
+    resources are included with ``reconciled=True`` so the Flow Groups
+    tab can show them with a "Matched" indicator instead of hiding them.
+
+    Resources in *update_refs* are shown with ``action="update"`` — they
+    were reconciled but their payload was edited, so they will update the
+    existing resource during execution.
+    """
     from engine import extract_ref_dependencies
 
+    _update = update_refs or {}
+
+    recon_lookup: dict[str, Any] = {}
+    if reconciliation is not None:
+        for m in getattr(reconciliation, "matches", []):
+            if m.use_existing:
+                recon_lookup[m.config_ref] = m
+
+    def _build_item(
+        ref: str, resource: Any, batch_idx: int, recon_match: Any | None = None,
+    ) -> dict[str, Any]:
+        meta = getattr(resource, "metadata", {})
+        sandbox_info = extract_sandbox_info(resource)
+
+        if ref in _update:
+            action = "update"
+            reconciled = True
+            rec_id = _update[ref]
+            rec_name = getattr(recon_match, "discovered_name", "") if recon_match else ""
+        elif recon_match is not None:
+            action = "matched"
+            reconciled = True
+            rec_id = getattr(recon_match, "discovered_id", "")
+            rec_name = getattr(recon_match, "discovered_name", "")
+        elif batch_idx >= 0:
+            action = "create"
+            reconciled = False
+            rec_id = ""
+            rec_name = ""
+        else:
+            action = "skip"
+            reconciled = False
+            rec_id = ""
+            rec_name = ""
+
+        item: dict[str, Any] = {
+            "typed_ref": ref,
+            "resource_type": resource.resource_type,
+            "display_phase": resource.display_phase,
+            "display_name": extract_display_name(resource),
+            "batch": batch_idx,
+            "deletable": DELETABILITY.get(resource.resource_type, False),
+            "has_metadata": bool(meta),
+            "metadata": meta,
+            "deps": list(extract_ref_dependencies(resource))
+            + [d[5:] for d in getattr(resource, "depends_on", []) if d.startswith("$ref:")],
+            "sandbox_info": sandbox_info,
+            "payload": _resource_payload(resource),
+            "staged": getattr(resource, "staged", False),
+            "reconciled": reconciled,
+            "action": action,
+            "reconciled_name": rec_name,
+            "reconciled_id": rec_id,
+            "updatable": resource.resource_type in UPDATABLE_RESOURCE_TYPES,
+        }
+        if resource.resource_type == "internal_account":
+            conn_id = getattr(resource, "connection_id", "")
+            item["connection_ref"] = conn_id
+        return item
+
     items: list[dict] = []
+    batched_refs: set[str] = set()
     for batch_idx, batch in enumerate(batches):
         for ref in batch:
+            batched_refs.add(ref)
             resource = resource_map[ref]
-            meta = getattr(resource, "metadata", {})
-            sandbox_info = extract_sandbox_info(resource)
-            items.append(
-                {
-                    "typed_ref": ref,
-                    "resource_type": resource.resource_type,
-                    "display_phase": resource.display_phase,
-                    "display_name": extract_display_name(resource),
-                    "batch": batch_idx,
-                    "deletable": DELETABILITY.get(resource.resource_type, False),
-                    "has_metadata": bool(meta),
-                    "metadata": meta,
-                    "deps": list(extract_ref_dependencies(resource))
-                    + [d[5:] for d in getattr(resource, "depends_on", []) if d.startswith("$ref:")],
-                    "sandbox_info": sandbox_info,
-                }
-            )
+            recon_match = recon_lookup.get(ref)
+            items.append(_build_item(ref, resource, batch_idx, recon_match))
+
+    _skip = skip_refs or set()
+    for ref in sorted(_skip):
+        if ref in batched_refs or ref not in resource_map:
+            continue
+        resource = resource_map[ref]
+        recon_match = recon_lookup.get(ref)
+        items.append(_build_item(ref, resource, -1, recon_match))
+
     return items
+
+
+def build_available_connections(
+    config: Any,
+    discovery: Any | None = None,
+) -> list[dict]:
+    """Collect all connections (config-defined + discovered) for IA dropdowns.
+
+    Each entry: ``{"ref_value": "$ref:connection.xxx", "label": "..."}``
+    """
+    from org.discovery import DiscoveryResult
+
+    options: list[dict] = []
+    seen: set[str] = set()
+
+    for conn in getattr(config, "connections", []):
+        ref_val = f"$ref:connection.{conn.ref}"
+        if ref_val not in seen:
+            label = getattr(conn, "nickname", "") or conn.ref
+            options.append({"ref_value": ref_val, "label": label})
+            seen.add(ref_val)
+
+    if isinstance(discovery, DiscoveryResult):
+        for dc in discovery.connections:
+            ref_val = f"$ref:{dc.auto_ref}"
+            if ref_val not in seen:
+                label = f"{dc.vendor_name} (discovered)"
+                options.append({"ref_value": ref_val, "label": label})
+                seen.add(ref_val)
+
+    return options
 
 
 _INFRA_RESOURCE_TYPES: frozenset[str] = frozenset({
