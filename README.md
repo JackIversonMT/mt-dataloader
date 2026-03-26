@@ -11,7 +11,7 @@ Upload a JSON **DataLoaderConfig** in the browser: the app validates it, shows e
 **You need:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) and a Modern Treasury **sandbox** API key and org ID.
 
 ```bash
-git clone <repo-url> && cd mt-dataloader
+git clone https://github.com/ejtheiss/mt-dataloader && cd mt-dataloader
 make docker-build                  # build the image (~30 s)
 make docker-run                    # start the container
 ```
