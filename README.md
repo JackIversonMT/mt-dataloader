@@ -12,7 +12,6 @@ Upload a JSON **DataLoaderConfig** in the browser: the app validates it, shows e
 
 ```bash
 git clone <repo-url> && cd mt-dataloader
-cp .env.example .env               # fill in your API key + org ID
 make docker-build                  # build the image (~30 s)
 make docker-run                    # start the container
 ```
