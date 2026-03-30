@@ -2,12 +2,12 @@
   "connections": [
     {
       "ref": "fiat_bank",
-      "entity_id": "example1",
+      "entity_id": "modern_treasury",
       "nickname": "Fiat Banking Partner (USD)"
     },
     {
       "ref": "stablecoin_rail",
-      "entity_id": "example1",
+      "entity_id": "modern_treasury",
       "nickname": "Stablecoin Rail (USDC)"
     }
   ],
