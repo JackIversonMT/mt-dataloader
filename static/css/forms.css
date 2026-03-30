@@ -27,7 +27,7 @@
   font-size: 1rem;
   font-weight: 500;                          /* font-medium */
   line-height: 1.5;
-  color: #303030;                            /* text-gray-800 */
+  color: var(--gray-800);                            /* text-gray-800 */
   margin-bottom: 8px;
 }
 
@@ -154,7 +154,7 @@
 }
 
 .mt-label:hover {
-  color: #303030;                            /* hover:text-gray-900 — approximation (MT uses gray-900) */
+  color: var(--gray-800);                            /* hover:text-gray-900 — approximation (MT uses gray-900) */
 }
 
 .mt-label label {
@@ -198,9 +198,9 @@
   border: 1px solid var(--border-default, #DEDDD7);
   padding: 4px 8px;                          /* py-1 px-2 */
   font-size: 0.875rem;                       /* text-sm */
-  color: #303030;                            /* text-gray-800 */
+  color: var(--gray-800);                            /* text-gray-800 */
   outline: none;
-  background: #fff;
+  background: var(--white);
 }
 
 .mt-input::placeholder {
@@ -214,12 +214,12 @@
 .mt-input:active:not(:disabled),
 .mt-input:focus:not(:disabled),
 .mt-input:focus-within:not(:disabled) {
-  border-color: #386FB1;                     /* focus:border-blue-500 */
+  border-color: var(--blue-500);                     /* focus:border-blue-500 */
 }
 
 .mt-input:disabled {
   cursor: not-allowed;
-  border-color: #DEDDD7;                     /* border-gray-100 */
+  border-color: var(--gray-100);              /* border-gray-100 */
   background: #F5F5F0;
 }
 
@@ -287,14 +287,14 @@
   border: 1px solid var(--border-default, #DEDDD7);
   padding: 8px;
   font-size: 0.875rem;
-  color: #303030;
+  color: var(--gray-800);
   outline: none;
-  background: #fff;
+  background: var(--white);
   resize: vertical;
 }
 
 .mt-textarea:focus {
-  border-color: #386FB1;
+  border-color: var(--blue-500);
 }
 
 /* --- Select --- */
@@ -305,9 +305,9 @@
   border: 1px solid var(--border-default, #DEDDD7);
   padding: 4px 8px;
   font-size: 0.875rem;
-  color: #303030;
+  color: var(--gray-800);
   outline: none;
-  background: #fff;
+  background: var(--white);
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236B695D' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -316,5 +316,5 @@
 }
 
 .mt-select:focus {
-  border-color: #386FB1;
+  border-color: var(--blue-500);
 }

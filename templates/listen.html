@@ -4,29 +4,105 @@
 {% block title_display %}Webhook Listener{% endblock %}
 
 {% block content %}
-    {% if tunnel_url %}
-    <div class="tunnel-banner tunnel-ok">
-        <strong>Tunnel detected:</strong>
-        <code>{{ tunnel_url }}{{ webhook_path }}</code>
-        <button class="btn btn-sm btn-outline"
-                onclick="navigator.clipboard.writeText('{{ tunnel_url }}{{ webhook_path }}')">
-            Copy
-        </button>
-    </div>
-    {% else %}
-    <div class="tunnel-banner tunnel-warn">
-        <strong>No tunnel detected.</strong>
-        Start ngrok to receive webhooks from MT:
-        <code>ngrok http 8000</code>
-    </div>
-    {% endif %}
 
-    <p class="text-muted">
-        Configure this URL in
-        <a href="https://app.moderntreasury.com/developers/webhooks"
-           target="_blank" rel="noopener">MT Dashboard &rarr; Webhooks</a>.
-    </p>
+    {# ================================================================
+       Section 1: Tunnel Setup
+       ================================================================ #}
+    <div class="card" id="tunnel-setup-card">
+        <div class="card-header">
+            <div class="card-heading">
+                <div class="card-title">Tunnel &amp; Webhook Setup</div>
+                <div class="card-description">Connect ngrok to receive live MT webhook events</div>
+            </div>
+            <div class="card-actions">
+                <span id="tunnel-status-dot" class="tunnel-dot tunnel-dot--disconnected" title="Disconnected"></span>
+            </div>
+        </div>
+        <div class="card-content">
+            <div class="tunnel-setup-grid">
+                {# -- Left: tunnel controls -- #}
+                <div class="tunnel-setup-col">
+                    <div class="tunnel-field-group">
+                        <label class="tunnel-label" for="ngrok-authtoken">ngrok authtoken</label>
+                        <div class="tunnel-input-row">
+                            <input type="password" id="ngrok-authtoken" class="mt-input"
+                                   placeholder="Paste your authtoken"
+                                   value="{{ saved_authtoken }}" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="tunnel-field-group">
+                        <label class="tunnel-label" for="ngrok-domain">
+                            Static domain <span class="text-muted">(optional)</span>
+                        </label>
+                        <div class="tunnel-input-row">
+                            <input type="text" id="ngrok-domain" class="mt-input"
+                                   placeholder="e.g. your-name.ngrok-free.app"
+                                   value="{{ saved_domain }}" autocomplete="off">
+                        </div>
+                        <span class="tunnel-hint">
+                            Free accounts get one stable domain.
+                            <a href="https://dashboard.ngrok.com/domains" target="_blank" rel="noopener">Claim yours</a>
+                        </span>
+                    </div>
+                    <div class="tunnel-btn-row">
+                        <button class="btn btn-primary" id="btn-tunnel-start">Start Tunnel</button>
+                        <button class="btn btn-outline" id="btn-tunnel-stop" disabled>Stop</button>
+                    </div>
+                </div>
 
+                {# -- Right: status + webhook URL + MT registration -- #}
+                <div class="tunnel-setup-col">
+                    <div class="tunnel-url-box" id="tunnel-url-box">
+                        <div class="tunnel-url-label">Webhook URL</div>
+                        <div class="tunnel-url-display" id="tunnel-url-display">
+                            {% if tunnel_url %}
+                                <code id="tunnel-url-value">{{ tunnel_url }}{{ webhook_path }}</code>
+                                <button class="btn btn-sm btn-outline" id="btn-copy-url"
+                                        onclick="navigator.clipboard.writeText(document.getElementById('tunnel-url-value').textContent)">
+                                    Copy
+                                </button>
+                            {% else %}
+                                <span class="text-muted" id="tunnel-url-placeholder">Start the tunnel to see URL</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="tunnel-register-box" id="tunnel-register-box">
+                        <div class="tunnel-url-label">MT Webhook Endpoint</div>
+                        <div id="tunnel-register-status" class="tunnel-register-status">
+                            <span class="text-muted">Register after starting the tunnel</span>
+                        </div>
+                        <div class="tunnel-btn-row" style="margin-top: 8px;">
+                            <button class="btn btn-sm btn-outline" id="btn-register-mt"
+                                    {{ 'disabled' if not tunnel_url }}>
+                                Register in MT
+                            </button>
+                            <a href="https://app.moderntreasury.com/developers/webhooks"
+                               target="_blank" rel="noopener" class="btn btn-sm btn-ghost">
+                                Open MT Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# -- Collapsible setup instructions -- #}
+            <details class="tunnel-instructions">
+                <summary>First-time setup instructions</summary>
+                <ol class="tunnel-steps">
+                    <li>Create a free account at <a href="https://ngrok.com/signup" target="_blank" rel="noopener">ngrok.com</a></li>
+                    <li>Copy your authtoken from the <a href="https://dashboard.ngrok.com/get-started/your-authtoken" target="_blank" rel="noopener">ngrok dashboard</a></li>
+                    <li>Paste it above and click <strong>Start Tunnel</strong></li>
+                    <li>Click <strong>Register in MT</strong> to auto-create the webhook endpoint (requires API key from the Setup page)</li>
+                    <li><em>Optional:</em> <a href="https://dashboard.ngrok.com/domains" target="_blank" rel="noopener">Claim a free static domain</a> so the URL never changes</li>
+                </ol>
+            </details>
+        </div>
+    </div>
+
+    {# ================================================================
+       Section 2: Filter bar + Live Feed (unchanged)
+       ================================================================ #}
     <div class="mt-filter-bar">
         <div class="mt-filter-bar-inner">
             <div class="mt-filter-bar-left">
@@ -98,6 +174,7 @@
 
 <script>
 (function() {
+    /* ---- SSE live feed (unchanged logic) ---- */
     var source = null;
     var container = document.getElementById('live-webhooks');
     var pillsContainer = document.getElementById('run-filter-pills');
@@ -123,7 +200,6 @@
     window.setRunFilter = function(runId) {
         var panel = document.getElementById('run-filter-panel');
         if (panel) panel.classList.add('hidden');
-
         container.innerHTML = '';
         if (runId) {
             pillsContainer.innerHTML =
@@ -157,6 +233,136 @@
             var empty = document.getElementById('webhook-empty');
             if (empty) empty.remove();
         });
+    });
+
+    /* ---- Tunnel management ---- */
+    var dot       = document.getElementById('tunnel-status-dot');
+    var urlBox    = document.getElementById('tunnel-url-display');
+    var regStatus = document.getElementById('tunnel-register-status');
+    var btnStart  = document.getElementById('btn-tunnel-start');
+    var btnStop   = document.getElementById('btn-tunnel-stop');
+    var btnReg    = document.getElementById('btn-register-mt');
+    var webhookPath = '/webhooks/mt';
+    var _lastConnected = {{ 'true' if tunnel_url else 'false' }};
+
+    function setConnectedUI(url) {
+        dot.className = 'tunnel-dot tunnel-dot--connected';
+        dot.title = 'Connected';
+        urlBox.innerHTML =
+            '<code id="tunnel-url-value">' + url + webhookPath + '</code>' +
+            '<button class="btn btn-sm btn-outline" id="btn-copy-url" ' +
+            'onclick="navigator.clipboard.writeText(document.getElementById(\'tunnel-url-value\').textContent)">' +
+            'Copy</button>';
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+        btnReg.disabled = false;
+    }
+
+    function setDisconnectedUI() {
+        dot.className = 'tunnel-dot tunnel-dot--disconnected';
+        dot.title = 'Disconnected';
+        urlBox.innerHTML = '<span class="text-muted" id="tunnel-url-placeholder">Start the tunnel to see URL</span>';
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+        btnReg.disabled = true;
+    }
+
+    function pollStatus() {
+        fetch('/api/tunnel/status').then(function(r) { return r.json(); }).then(function(data) {
+            if (data.connected && data.url) {
+                if (!_lastConnected) setConnectedUI(data.url);
+                _lastConnected = true;
+            } else {
+                if (_lastConnected) setDisconnectedUI();
+                _lastConnected = false;
+            }
+            if (data.webhook_endpoint_id) {
+                regStatus.innerHTML =
+                    '<span class="badge badge--success">Registered</span> ' +
+                    '<span class="text-muted" style="font-size:12px;">Endpoint: ' +
+                    data.webhook_endpoint_id.substring(0, 16) + '&hellip;</span>';
+            }
+        }).catch(function() {});
+    }
+
+    setInterval(pollStatus, 10000);
+    pollStatus();
+
+    /* Start tunnel */
+    btnStart.addEventListener('click', function() {
+        var token = document.getElementById('ngrok-authtoken').value.trim();
+        if (!token) { alert('Please enter your ngrok authtoken.'); return; }
+        btnStart.disabled = true;
+        btnStart.textContent = 'Starting\u2026';
+        var body = new FormData();
+        body.append('authtoken', token);
+        var domain = document.getElementById('ngrok-domain').value.trim();
+        if (domain) body.append('domain', domain);
+        fetch('/api/tunnel/start', {method: 'POST', body: body})
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btnStart.textContent = 'Start Tunnel';
+                if (data.ok) {
+                    setConnectedUI(data.url);
+                    _lastConnected = true;
+                } else {
+                    btnStart.disabled = false;
+                    alert('Tunnel start failed: ' + (data.error || 'unknown error'));
+                }
+            })
+            .catch(function(err) {
+                btnStart.textContent = 'Start Tunnel';
+                btnStart.disabled = false;
+                alert('Tunnel start failed: ' + err);
+            });
+    });
+
+    /* Stop tunnel */
+    btnStop.addEventListener('click', function() {
+        fetch('/api/tunnel/stop', {method: 'POST'})
+            .then(function() {
+                setDisconnectedUI();
+                _lastConnected = false;
+            });
+    });
+
+    /* Register in MT */
+    btnReg.addEventListener('click', function() {
+        var apiKey = sessionStorage.getItem('mt_api_key');
+        var orgId  = sessionStorage.getItem('mt_org_id');
+        if (!apiKey || !orgId) {
+            alert('Enter your MT API key and org ID on the Setup page first.');
+            return;
+        }
+        btnReg.disabled = true;
+        btnReg.textContent = 'Registering\u2026';
+        var body = new FormData();
+        body.append('api_key', apiKey);
+        body.append('org_id', orgId);
+        fetch('/api/tunnel/register-webhook', {method: 'POST', body: body})
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btnReg.textContent = 'Register in MT';
+                btnReg.disabled = false;
+                if (data.ok) {
+                    var msg = data.action === 'created' ? 'Created' :
+                              data.action === 'updated' ? 'Updated' : 'Already registered';
+                    regStatus.innerHTML =
+                        '<span class="badge badge--success">' + msg + '</span> ' +
+                        '<span class="text-muted" style="font-size:12px;">Endpoint: ' +
+                        data.endpoint_id.substring(0, 16) + '&hellip;</span>';
+                    if (data.webhook_key_captured) {
+                        regStatus.innerHTML += ' <span class="badge badge--cool">Signing secret auto-configured</span>';
+                    }
+                } else {
+                    regStatus.innerHTML = '<span class="badge badge--critical">Failed: ' + (data.error || 'unknown') + '</span>';
+                }
+            })
+            .catch(function(err) {
+                btnReg.textContent = 'Register in MT';
+                btnReg.disabled = false;
+                regStatus.innerHTML = '<span class="badge badge--critical">Error: ' + err + '</span>';
+            });
     });
 })();
 </script>

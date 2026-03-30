@@ -25,11 +25,11 @@
   gap: 4px;                                  /* gap-1 */
   border-radius: 9999px;                     /* rounded-2xl */
   border: 1px solid rgba(0, 0, 0, 0.09);    /* border-alpha-black-100 */
-  background-color: #fff;                    /* bg-white */
+  background-color: var(--white);                    /* bg-white */
   padding: 4px 12px;                         /* px-3 py-1 */
   font-size: 0.75rem;                        /* text-xs */
   font-weight: 500;                          /* font-medium */
-  color: #303030;                            /* text-gray-800 */
+  color: var(--gray-800);                            /* text-gray-800 */
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

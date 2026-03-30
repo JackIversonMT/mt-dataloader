@@ -1,8 +1,8 @@
-.PHONY: setup run tunnel webhooks validate help docker-build docker-run docker-stop
+.PHONY: setup run tunnel webhooks validate help docker-build docker-run docker-stop docker-update
 
 help: ## Show this help
 	@grep -E '^[a-z][a-z_-]+:.*## ' $(MAKEFILE_LIST) | \
-		awk -F ':.*## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+		awk -F ':.*## ' '{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 setup: ## Create venv and install dependencies
 	python3 -m venv .venv
@@ -13,18 +13,18 @@ setup: ## Create venv and install dependencies
 run: ## Start the dataloader (auto-reload)
 	.venv/bin/uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
-tunnel: ## Start ngrok tunnel to localhost:8000
+tunnel: ## Start ngrok tunnel (or use /listen in the UI)
+	@echo "Tip: You can now manage the tunnel from http://127.0.0.1:8000/listen"
+	@echo ""
 	@command -v ngrok >/dev/null 2>&1 || { echo "ngrok not found. Install: brew install ngrok"; exit 1; }
-	@echo "Starting tunnel — copy the https:// URL into MT Dashboard → Webhooks"
-	@echo "Or just open http://127.0.0.1:8000/listen after the tunnel starts.\n"
 	ngrok http 8000
 
-webhooks: ## Start app + tunnel side-by-side (requires tmux or two terminals)
-	@echo "Run these in two terminals:"
+webhooks: ## How to set up webhooks
+	@echo "Open http://127.0.0.1:8000/listen to manage tunnel + webhooks from the UI."
+	@echo ""
+	@echo "Or manually in two terminals:"
 	@echo "  make run      # Terminal 1 — start the app"
 	@echo "  make tunnel   # Terminal 2 — start ngrok"
-	@echo ""
-	@echo "Then open http://127.0.0.1:8000/listen"
 
 validate: ## Validate all example configs
 	.venv/bin/python - <<'PY'
@@ -46,3 +46,9 @@ docker-run: ## Start the dataloader in Docker
 
 docker-stop: ## Stop the Docker container
 	docker compose down
+
+docker-update: ## Pull latest and rebuild (runs/ data preserved)
+	git pull
+	docker compose build
+	docker compose down && docker compose up -d
+	@echo "\n  Updated. Open http://localhost:8000"

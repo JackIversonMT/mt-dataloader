@@ -223,11 +223,11 @@ Paste from repo (trim only if size-constrained):
 
 ---
 
-## Funds Flows DSL (preferred output for lifecycle demos)
+## Funds Flows DSL (use by default — not just lifecycle demos)
 
-When the demo involves a lifecycle pattern (deposit → settle → return,
-payment → ledger → reversal), **always** use the `funds_flows` DSL instead
-of manually assembling individual resources.
+**Always use `funds_flows`** unless the config is a single isolated resource
+(one PO, one LT) with no related steps. Even simple two-step demos benefit
+from the DSL. Raw resource arrays are the exception, not the norm.
 
 ### Funds Flow JSON structure
 

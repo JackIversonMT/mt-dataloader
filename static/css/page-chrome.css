@@ -58,11 +58,11 @@
 }
 
 .breadcrumb-item a:hover {
-  color: #386FB1;                            /* text-blue-500 on hover */
+  color: var(--blue-500);                    /* text-blue-500 on hover */
 }
 
 .breadcrumb-item:last-child {
-  color: #303030;                            /* text-gray-800 — current page */
+  color: var(--gray-800);                            /* text-gray-800 — current page */
 }
 
 .breadcrumb-separator {
@@ -239,7 +239,7 @@
 .card-title {
   font-size: 0.875rem;                       /* text-sm */
   font-weight: 500;                          /* font-medium */
-  color: #303030;
+  color: var(--gray-800);
 }
 
 .card-description {
@@ -260,7 +260,7 @@
 .card-footer {
   padding: 12px 16px;                        /* py-3 px-4 */
   border-top: 1px solid rgba(0, 0, 0, 0.09);
-  background: #FAFAFA;                       /* bg-gray-25 */
+  background: var(--app-background);                       /* bg-gray-25 */
 }
 
 /* --- Empty State --- */
@@ -276,7 +276,7 @@
   min-height: 200px;
   border: 1px dashed rgba(0, 0, 0, 0.09);   /* dashed border */
   border-radius: 8px;
-  background: #FAFAFA;                       /* bg-gray-25 */
+  background: var(--app-background);                       /* bg-gray-25 */
 }
 
 .empty-state-icon {
@@ -293,7 +293,7 @@
 .empty-state-title {
   font-size: 0.875rem;                       /* text-sm */
   font-weight: 500;                          /* font-medium */
-  color: #303030;                            /* text-gray-800 */
+  color: var(--gray-800);                            /* text-gray-800 */
   margin: 0;
 }
 

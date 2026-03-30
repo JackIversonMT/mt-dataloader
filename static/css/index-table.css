@@ -36,7 +36,7 @@
   width: 100%;
   justify-content: flex-start;
   border: 1px solid rgba(0, 0, 0, 0.09); /* border-alpha-black-100 */
-  background-color: #FFFFFF;
+  background-color: var(--white);
   border-radius: 0.5rem; /* rounded-lg */
 }
 
@@ -65,7 +65,7 @@
   border-top-left-radius: 0.5rem;
   border-top-right-radius: 0.5rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-  background-color: #FAFAFA; /* bg-background-light = gray-25 */
+  background-color: var(--app-background); /* bg-background-light = gray-25 */
   font-weight: 500;
 }
 
@@ -85,7 +85,7 @@
   font-size: 0.75rem; /* text-xs = 12px */
   line-height: 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-  background-color: #FFFFFF; /* bg-background-default */
+  background-color: var(--white); /* bg-background-default */
 }
 
 .ui-table-row:last-child {
@@ -102,7 +102,7 @@
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom: 0;
-  background-color: #FAFAFA;
+  background-color: var(--app-background);
   font-weight: 500;
 }
 
@@ -122,7 +122,7 @@
 }
 
 .ui-table-row.linked:hover {
-  background-color: #FAFAFA; /* bg-background-light */
+  background-color: var(--app-background); /* bg-background-light */
 }
 
 /* ===== Th (Table Header Cell) — table.css line 133-134 ===== */
@@ -185,7 +185,7 @@
 }
 
 .index-table-sort-btn:hover {
-  color: #303030; /* text-gray-800 */
+  color: var(--gray-800); /* text-gray-800 */
 }
 
 /* Sort icon — IndexTable.tsx sortIconName line 758-776 */
@@ -200,7 +200,7 @@
 
 .sort-icon--active {
   opacity: 1;
-  color: #386FB1; /* blue-500 */
+  color: var(--blue-500); /* blue-500 */
 }
 
 /* ===== mt-index-table — alias classes used by listen, runs, and webhook partials ===== */
@@ -210,7 +210,7 @@
   flex-direction: column;
   border: 1px solid rgba(0, 0, 0, 0.09);
   border-radius: 0.5rem;
-  background-color: #FFFFFF;
+  background-color: var(--white);
   overflow: hidden;
 }
 
@@ -219,7 +219,7 @@
   gap: 1.25rem;
   padding: 0 1.5rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-  background-color: #FAFAFA;
+  background-color: var(--app-background);
   font-weight: 500;
   font-size: 0.75rem;
   line-height: 1rem;
@@ -245,7 +245,7 @@
   font-size: 0.75rem;
   line-height: 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-  background-color: #FFFFFF;
+  background-color: var(--white);
   cursor: pointer;
   transition: background-color 0.1s ease;
 }
@@ -255,7 +255,7 @@
 }
 
 .mt-index-table-row:hover {
-  background-color: #FAFAFA;
+  background-color: var(--app-background);
 }
 
 .mt-index-table-cell {
@@ -276,11 +276,11 @@
 
 .mt-row-primary {
   font-weight: 500;
-  color: #303030;
+  color: var(--gray-800);
 }
 
 .mt-row-link {
-  color: #386FB1;
+  color: var(--blue-500);
   text-decoration: none;
   font-size: 0.75rem;
 }
@@ -303,5 +303,5 @@
 
 [data-sort-order] > .mt-sort-icon {
   opacity: 1;
-  color: #386FB1;
+  color: var(--blue-500);
 }

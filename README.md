@@ -37,6 +37,37 @@ Open **http://127.0.0.1:8000**. Enter your **API key** and **org ID** on the set
 
 ---
 
+## Updating
+
+When a new version is pushed to GitHub:
+
+### Docker (recommended)
+
+```bash
+cd mt-dataloader
+git pull                                      # pull the latest code
+make docker-build                             # rebuild the image (~30 s)
+make docker-stop && make docker-run           # restart the container
+```
+
+Or in one command: `make docker-update`
+
+Your `runs/` and `logs/` directories are volume-mounted and **survive the rebuild** — no data is lost. Settings entered in the UI (ngrok authtoken, webhook config) persist in `runs/` automatically.
+
+To check which version you're running, look at the sidebar footer in the UI or call `GET /api/version`.
+
+### Local Python
+
+```bash
+cd mt-dataloader
+git pull
+source .venv/bin/activate
+pip install -r requirements.txt               # pick up new/changed deps
+make run
+```
+
+---
+
 ## Configuration (everything optional)
 
 | What | Default behavior |
@@ -154,90 +185,49 @@ See **`prompts/`** -- start with **`prompts/README.md`** (what each file is for)
 
 ## Webhooks (optional)
 
-Receive real-time MT webhook events correlated to dataloader runs.
+Receive real-time MT webhook events correlated to dataloader runs. The dataloader manages an ngrok tunnel from within the app — no separate terminal needed.
 
-The dataloader runs on `localhost:8000`, but Modern Treasury needs to reach it over the internet to deliver webhooks. **[ngrok](https://ngrok.com)** creates a temporary public URL that tunnels traffic to your local machine -- MT sends a webhook to the public URL, ngrok forwards it to `localhost:8000`, and the dataloader receives it.
+### Setup (2 minutes, one-time)
 
-### 1. Install ngrok (one-time)
+1. Create a **free account** at [ngrok.com/signup](https://ngrok.com/signup) and copy your **authtoken** from the [dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+2. Start the dataloader: `make docker-run` (or `make run`)
+3. Open **http://localhost:8000/listen**
+4. Paste your authtoken and click **Start Tunnel**
+5. Click **Register in MT** — the app auto-creates a webhook endpoint in MT and captures the signing secret
+
+> **Tip:** Free ngrok accounts include one **stable static domain** (`*.ngrok-free.app`). Claim yours at [dashboard.ngrok.com/domains](https://dashboard.ngrok.com/domains) and enter it in the domain field. With a static domain, the webhook URL never changes — registration is truly one-time.
+
+### Subsequent sessions
+
+If you entered your authtoken previously, the tunnel **auto-starts** when the container starts. Open `/listen` to verify the green status dot. With a static domain, MT's webhook endpoint still points to the same URL — zero manual steps.
+
+### Verify it works
+
+Click **Send Test Webhook** on the `/listen` page — a synthetic event should appear in the live feed. Then run a config and watch real MT events stream in.
+
+### Advanced: external ngrok (optional)
+
+If you prefer running ngrok outside the app (e.g. in a separate terminal), that still works:
 
 ```bash
-brew install ngrok                          # macOS
-# or: https://ngrok.com/download            # other platforms
-```
+# Terminal 1 — start the app
+make run
 
-Create a **free account** at [ngrok.com](https://ngrok.com/signup), then authenticate (your auth token is on the ngrok dashboard):
-
-```bash
-ngrok config add-authtoken <your-token>
-```
-
-### 2. Start the tunnel
-
-With the dataloader already running (`make run`), open a **second terminal**:
-
-```bash
+# Terminal 2 — start ngrok
 make tunnel
-# or: ngrok http 8000
 ```
 
-ngrok prints a forwarding URL:
+The `/listen` page auto-detects external tunnels via ngrok's local API (`127.0.0.1:4040`). Copy the URL and create a webhook endpoint manually in **MT Dashboard → Developers → Webhooks → Add Endpoint** with URL `https://your-tunnel.ngrok-free.app/webhooks/mt`.
 
-```
-Forwarding  https://ab12-34-56.ngrok-free.app -> http://localhost:8000
-```
+### Signature verification
 
-That `https://...ngrok-free.app` URL is your tunnel. It changes every time you restart ngrok (free plan). Paid plans support stable subdomains.
-
-### 3. Create a webhook endpoint in Modern Treasury
-
-Go to **MT Dashboard -> Developers -> Webhooks -> Add Endpoint**.
-
-In the **Webhook URL** field, paste your ngrok URL with `/webhooks/mt` appended:
-
-```
-https://ab12-34-56.ngrok-free.app/webhooks/mt
-```
-
-> **Important:** Do NOT use `localhost:8000` -- MT's servers cannot reach your machine at that address. You must use the `https://` URL from ngrok. The `/webhooks/mt` path at the end is the dataloader's receiver endpoint and is always the same.
-
-> **Tip:** Open **http://127.0.0.1:8000/listen** -- the dataloader auto-detects your ngrok tunnel and displays the full webhook URL ready to copy.
-
-Set the remaining fields:
-
-| Field | Value |
-|-------|-------|
-| **Basic Authentication** | Disabled |
-| **Events to send** | "Receive all events" (recommended) or select specific types |
-
-Click **Save**. MT displays a **signing secret** -- copy it if you want signature verification (step 4).
-
-### 4. Configure signature verification (optional)
-
-Add the signing secret to `.env`:
+When using **Register in MT**, the signing secret is captured automatically. For manual setup, add it to `.env`:
 
 ```bash
 DATALOADER_WEBHOOK_SECRET=whsec_...
 ```
 
-Without it the receiver accepts all payloads -- fine for sandbox demos. With it, the receiver validates the HMAC-SHA256 signature on every request and rejects tampered payloads.
-
-### 5. Verify it works
-
-Open **http://127.0.0.1:8000/listen** and click **Send Test** -- a synthetic event should appear in the live feed. Then run a config and watch real MT events stream in on both the listener page and the run detail page (**Runs -> Details -> Webhooks** tab).
-
-### Quick reference
-
-```bash
-# Terminal 1 -- start the app
-make run
-
-# Terminal 2 -- start the tunnel
-make tunnel
-```
-
-Then open **http://127.0.0.1:8000/listen** to see the tunnel URL and webhook feed.
-
-Run `make help` to see all available commands.
+Without it the receiver accepts all payloads — fine for sandbox demos.
 
 ### Staged resources (live demo mode)
 

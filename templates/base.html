@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/tokens.css?v={{ css_version }}">
     <link rel="stylesheet" href="/static/turbogrid/turbogrid.css?v={{ css_version }}">
     <link rel="stylesheet" href="/static/mt-patterns.css?v={{ css_version }}">
     <link rel="stylesheet" href="/static/css/drawer.css?v={{ css_version }}">
@@ -95,7 +96,9 @@
                     Listener
                 </a>
             </nav>
-            <div class="sidebar-footer" id="sidebar-org"></div>
+            <div class="sidebar-footer" id="sidebar-org">
+                <span class="sidebar-version">v{{ app_version }}</span>
+            </div>
         </aside>
         <main id="content" class="turbogrid">
             {% block page_header %}

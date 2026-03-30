@@ -76,7 +76,7 @@
   left: 0;
   z-index: 100;
   min-width: 200px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid rgba(0, 0, 0, 0.09);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -106,14 +106,14 @@
   border-radius: 4px;
   padding: 0 8px;
   font-size: 0.75rem;
-  color: #303030;
-  background: #fff;
+  color: var(--gray-800);
+  background: var(--white);
   outline: none;
   min-width: 180px;
 }
 
 .mt-filter-search:focus {
-  border-color: #386FB1;                           /* focus:border-blue-500 */
+  border-color: var(--blue-500);                    /* focus:border-blue-500 */
   box-shadow: 0 0 0 1px #386FB1;
 }
 
@@ -180,8 +180,8 @@
 }
 
 .mt-chip-remove:hover {
-  background: #DEDDD7;                             /* hover:bg-gray-100 */
-  color: #303030;
+  background: var(--gray-100);                      /* hover:bg-gray-100 */
+  color: var(--gray-800);
 }
 
 /* --- Export Button --- */
@@ -226,7 +226,7 @@
   right: 0;
   z-index: 100;
   min-width: 160px;
-  background: #fff;
+  background: var(--white);
   border: 1px solid rgba(0, 0, 0, 0.09);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);

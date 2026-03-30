@@ -28,7 +28,7 @@
 /* Checked state */
 .mt-toggle[aria-checked="true"],
 .mt-toggle.mt-toggle--checked {
-  background: #386FB1;                       /* bg-blue-500 */
+  background: var(--blue-500);                /* bg-blue-500 */
 }
 
 /* Focus ring */
@@ -53,7 +53,7 @@
   width: 12px;                               /* w-3 */
   height: 12px;                              /* h-3 */
   border-radius: 50%;                        /* rounded-full */
-  background: #fff;
+  background: var(--white);
   pointer-events: none;
   transition: transform 150ms;
   transform: translateX(0);                  /* unchecked position */
@@ -75,7 +75,7 @@
   height: 6px;
   opacity: 0;
   transition: opacity 150ms;
-  color: #386FB1;                            /* text-blue-500 */
+  color: var(--blue-500);                     /* text-blue-500 */
 }
 
 .mt-toggle[aria-checked="true"] .mt-toggle-thumb svg,
@@ -97,5 +97,5 @@
 }
 
 .mt-toggle-label:hover {
-  color: #303030;                            /* text-gray-900 */
+  color: var(--gray-800);                            /* text-gray-900 */
 }

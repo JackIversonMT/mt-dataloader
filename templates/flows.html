@@ -154,5 +154,20 @@
         navigator.clipboard.writeText(val).then(function() { showToast('JSON copied!'); });
     });
 })();
+
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var openScale = params.get('open_scale');
+    if (openScale !== null) {
+        var el = document.getElementById('scenario-builder-' + openScale);
+        if (el) {
+            el.open = true;
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        params.delete('open_scale');
+        var clean = window.location.pathname + '?' + params.toString();
+        history.replaceState(null, '', clean);
+    }
+})();
 </script>
 {% endblock %}

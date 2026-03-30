@@ -684,8 +684,19 @@ async def fire_staged(
 # ---------------------------------------------------------------------------
 
 
-async def _detect_tunnel() -> str | None:
-    """Probe ngrok local API for a public tunnel URL."""
+def _detect_tunnel_from_manager(request: Request) -> str | None:
+    """Check TunnelManager (pyngrok-managed) for an active tunnel URL."""
+    mgr = getattr(request.app.state, "tunnel", None)
+    if mgr is None:
+        return None
+    status = mgr.get_status()
+    if status.get("connected") and status.get("url"):
+        return status["url"]
+    return None
+
+
+async def _detect_tunnel_legacy() -> str | None:
+    """Probe ngrok local API for a public tunnel URL (external ngrok)."""
     try:
         async with httpx.AsyncClient(timeout=2.0) as http:
             resp = await http.get("http://127.0.0.1:4040/api/tunnels")
@@ -700,12 +711,27 @@ async def _detect_tunnel() -> str | None:
     return None
 
 
+async def _detect_tunnel(request: Request) -> str | None:
+    """Try TunnelManager first, fall back to probing external ngrok."""
+    url = _detect_tunnel_from_manager(request)
+    if url:
+        return url
+    return await _detect_tunnel_legacy()
+
+
 @router.get("/listen", include_in_schema=False)
 async def listen_page(request: Request, run_id: str | None = None):
     """Standalone webhook listener with tunnel auto-detection and run filter."""
-    tunnel_url = await _detect_tunnel()
+    tunnel_url = await _detect_tunnel(request)
     settings = request.app.state.settings
     templates = request.app.state.templates
+
+    mgr = getattr(request.app.state, "tunnel", None)
+    saved_authtoken = ""
+    saved_domain = ""
+    if mgr:
+        saved_authtoken = settings.ngrok_authtoken or mgr.saved_authtoken
+        saved_domain = settings.ngrok_domain or mgr.saved_domain
 
     webhook_history: list[dict] = []
     if run_id:
@@ -723,6 +749,8 @@ async def listen_page(request: Request, run_id: str | None = None):
             "webhook_history": webhook_history,
             "run_ids": run_ids,
             "selected_run_id": run_id,
+            "saved_authtoken": saved_authtoken,
+            "saved_domain": saved_domain,
         },
     )
 

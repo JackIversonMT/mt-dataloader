@@ -307,6 +307,33 @@
       return recipe;
     }
 
+    // ----- Mermaid rendering helper -----
+
+    function renderPreviewMermaid(diagrams, target) {
+      if (!diagrams || diagrams.length === 0 || typeof mermaid === 'undefined') return;
+      diagrams.forEach(function (src, i) {
+        var wrapper = document.createElement('details');
+        wrapper.className = 'accordion accordion--muted';
+        wrapper.setAttribute('data-mermaid', '');
+        wrapper.innerHTML =
+          '<summary class="accordion-toggle">' +
+            '<span class="accordion-toggle-title">Preview Diagram ' + (i + 1) + '</span>' +
+          '</summary>' +
+          '<div class="accordion-body">' +
+            '<div class="mermaid-render" id="preview-mmd-render-' + idx + '-' + i + '"></div>' +
+            '<pre class="mermaid-source" style="display:none">' +
+              src.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+            '</pre>' +
+          '</div>';
+        target.appendChild(wrapper);
+        wrapper.addEventListener('toggle', function () {
+          if (this.open && typeof renderMermaidAccordion === 'function') {
+            renderMermaidAccordion(this);
+          }
+        });
+      });
+    }
+
     // ----- Preview -----
 
     async function genPreview() {
@@ -326,12 +353,27 @@
             (data.detail ? '<br>' + fmtDetail(data.detail) : '') + '</p></div>';
           return;
         }
-        var html = '<div style="font-size: 0.85rem; padding: 10px 0;">' +
-          '<strong>' + data.total_resources + '</strong> resources, ' +
+        out.innerHTML = '';
+
+        var stats = document.createElement('div');
+        stats.style.cssText = 'font-size: 0.85rem; padding: 10px 0;';
+        var html = '<strong>' + data.total_resources + '</strong> resources, ' +
           '<strong>' + data.estimated_api_calls + '</strong> API calls, ' +
           '<strong>' + data.estimated_batches + '</strong> batches';
+        if (data.staged_count > 0) {
+          html += ', <strong>' + data.staged_count + '</strong> staged';
+        }
         if (data.needs_confirmation) {
           html += '<br><span class="badge badge--warning" style="margin-top: 4px;">Large run \u2014 will require confirmation</span>';
+        }
+        if (data.counts_by_type && Object.keys(data.counts_by_type).length > 0) {
+          html += '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">';
+          for (var rtype in data.counts_by_type) {
+            if (data.counts_by_type[rtype] > 0) {
+              html += '<span class="chip">' + rtype.replace(/_/g, ' ') + ': ' + data.counts_by_type[rtype] + '</span>';
+            }
+          }
+          html += '</div>';
         }
         if (data.edge_case_map && Object.keys(data.edge_case_map).length > 0) {
           html += '<div style="margin-top: 8px;"><strong>Edge case assignments:</strong>';
@@ -346,8 +388,10 @@
           }
           html += '</div>';
         }
-        html += '</div>';
-        out.innerHTML = html;
+        stats.innerHTML = html;
+        out.appendChild(stats);
+
+        renderPreviewMermaid(data.mermaid_diagrams, out);
       } finally {
         btn.disabled = false; btn.textContent = 'Preview';
       }
@@ -366,29 +410,14 @@
           body: JSON.stringify(recipe)
         });
         var data = await resp.json();
-        var out = field('result');
         if (data.error) {
+          var out = field('result');
           out.innerHTML = '<div class="alert alert--critical"><p>' + data.error +
             (data.detail ? '<br>' + fmtDetail(data.detail) : '') + '</p></div>';
           return;
         }
-        out.innerHTML = '';
-        var recipeNote = data.recipe_count > 1 ? ' (' + data.recipe_count + ' flows scaled)' : '';
-        showToast('Config applied \u2014 ' + data.total_resources + ' resources, ' +
-          data.mermaid_count + ' diagram(s)' + recipeNote);
-        var toggle = q(':scope > .accordion-toggle');
-        if (toggle) {
-          var existing = toggle.querySelector('.chip');
-          var instances = parseInt(field('instances').value) || 0;
-          if (existing) {
-            existing.textContent = instances + ' instances';
-          } else {
-            var chip = document.createElement('span');
-            chip.className = 'chip';
-            chip.textContent = instances + ' instances';
-            toggle.appendChild(chip);
-          }
-        }
+        window.location.href = '/flows?session_token=' + encodeURIComponent(sessionToken) +
+          '&open_scale=' + idx;
       } finally {
         btn.disabled = false; btn.textContent = 'Apply to Config';
       }

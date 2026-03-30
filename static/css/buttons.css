@@ -59,7 +59,7 @@
 .mt-btn--primary {
   border: 1px solid var(--primary-interactive, #386FB1);
   background: var(--primary-interactive, #386FB1);
-  color: #fff;
+  color: var(--white);
 }
 
 .mt-btn--primary:hover:not(:disabled) {
@@ -73,7 +73,7 @@
 }
 
 .mt-btn--primary:focus {
-  border-color: #fff;
+  border-color: var(--white);
   box-shadow: 0 0 0 1px var(--primary-interactive, #386FB1);
 }
 
@@ -92,7 +92,7 @@
 
 .mt-btn--secondary:hover:not(:disabled) {
   border-color: #C4C3BB;                     /* gray-200 */
-  background: #FAFAFA;                       /* gray-25 */
+  background: var(--app-background);                       /* gray-25 */
 }
 
 .mt-btn--secondary:active:not(:disabled) {
@@ -116,7 +116,7 @@
 .mt-btn--destructive {
   border: 1px solid #C4381D;                 /* red-600 */
   background: #D44020;                       /* red-500 */
-  color: #fff;
+  color: var(--white);
 }
 
 .mt-btn--destructive:hover:not(:disabled) {
@@ -144,7 +144,7 @@
 .mt-btn--internal {
   border: 1px solid #7C3AED;                 /* purple-600 */
   background: #8B5CF6;                       /* purple-500 */
-  color: #fff;
+  color: var(--white);
 }
 
 .mt-btn--internal:hover:not(:disabled) {
@@ -190,7 +190,7 @@
 }
 
 .mt-btn--text:disabled {
-  background: #FAFAFA;                       /* gray-25 */
+  background: var(--app-background);                       /* gray-25 */
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -202,7 +202,7 @@
   background: transparent;
   padding: 0;
   height: auto;
-  color: #386FB1;                            /* blue-500 */
+  color: var(--blue-500);                     /* blue-500 */
   font-size: inherit;
 }
 

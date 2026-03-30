@@ -8,74 +8,8 @@
  * Generated from: Page.tsx, Card.tsx, Modal.tsx, Tabs.tsx, Badge.tsx, Alert.tsx, EmptyState.tsx
  */
 
-/* ============================================================
-   0. DESIGN TOKENS (matches Turbogrid variables.css + MT Tailwind)
-   ============================================================ */
-:root {
-  /* Colors — from MT's Tailwind config + Turbogrid */
-  --mt-blue-50: #f2f7ff;
-  --mt-blue-100: #dde9f7;
-  --mt-blue-500: #386fb1;
-  --mt-blue-700: #204571;
-
-  --mt-green-50: #e4f3ec;
-  --mt-green-100: #bee6d5;
-  --mt-green-500: #008060;
-  --mt-green-700: #00473c;
-
-  --mt-red-50: #ffe8ec;
-  --mt-red-100: #ffced3;
-  --mt-red-500: #d4234a;
-  --mt-red-700: #7c1b3d;
-
-  --mt-yellow-50: #fefce8;
-  --mt-yellow-100: #fef9c3;
-  --mt-yellow-300: #fcd34d;
-  --mt-yellow-700: #92400e;
-
-  --mt-orange-50: #fff7ed;
-  --mt-orange-100: #ffedd5;
-  --mt-orange-700: #c2410c;
-
-  --mt-purple-50: #faf5ff;
-  --mt-purple-100: #f3e8ff;
-  --mt-purple-700: #7e22ce;
-  --mt-purple-800: #6b21a8;
-
-  --mt-gray-25: #fafafa;
-  --mt-gray-50: #f7f7f6;
-  --mt-gray-100: #deddd7;
-  --mt-gray-400: #aaa9a4;
-  --mt-gray-500: #8a8985;
-  --mt-gray-700: #575757;
-  --mt-gray-800: #303030;
-  --mt-gray-900: #222222;
-
-  --mt-white: #ffffff;
-  --mt-border-alpha: rgba(0, 0, 0, 0.12);
-  --mt-border-alpha-2: rgba(0, 0, 0, 0.2);
-
-  /* Spacing */
-  --mt-spacing-1: 0.25rem;  /* 4px */
-  --mt-spacing-2: 0.5rem;   /* 8px */
-  --mt-spacing-3: 0.75rem;  /* 12px */
-  --mt-spacing-4: 1rem;     /* 16px */
-  --mt-spacing-5: 1.25rem;  /* 20px */
-  --mt-spacing-6: 1.5rem;   /* 24px */
-  --mt-spacing-8: 2rem;     /* 32px */
-
-  /* Radius */
-  --mt-radius-sm: 0.125rem; /* 2px */
-  --mt-radius-md: 0.25rem;  /* 4px */
-  --mt-radius-lg: 0.5rem;   /* 8px */
-
-  /* Typography */
-  --mt-text-xs: 0.75rem;    /* 12px */
-  --mt-text-sm: 0.875rem;   /* 14px */
-  --mt-text-base: 1rem;     /* 16px */
-  --mt-text-lg: 1.125rem;   /* 18px */
-  --mt-text-xl: 1.25rem;    /* 20px */
-}
+/* Design tokens moved to static/css/tokens.css — loaded before this file.
+   All --mt-* aliases are defined there as legacy bridges. */
 
 
 /* Sections 1-5 (Page Header, Page Body, Breadcrumbs, Tabs, Card) removed — now in static/css/page-chrome.css */

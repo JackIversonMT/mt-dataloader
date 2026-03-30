@@ -108,25 +108,26 @@ Start at **B** unless the user chose **A** or **C**.
 
 ---
 
-## Funds Flows vs raw resource arrays
+## Funds Flows DSL is the default
 
-| Use `funds_flows` when | Use raw arrays when |
-|------------------------|---------------------|
-| 2+ related payment/ledger steps in a lifecycle | Single isolated resource (one PO, one LT) |
-| SE wants to scale instances (1 user to 100+) | Complex non-linear patterns |
-| Demo involves lifecycle variants (returns, reversals, alternative payout methods) | Mixing `funds_flows` with additional standalone resources |
-| Per-user infrastructure to **create** (LEs, CPs, IAs via `instance_resources`); `{instance}` placeholders work in all flows | |
+**Always use `funds_flows`.** Raw resource arrays are the rare exception.
 
-**Default:** If the demo involves a deposit-to-settle chain or any lifecycle
-pattern, use `funds_flows`. The compiler generates all the individual resources
-(POs, IPDs, LTs, returns) from the step definitions.
+| Use `funds_flows` (default) | Use raw arrays (exception) |
+|-----------------------------|----------------------------|
+| Any demo with 1+ payment/ledger steps | Single isolated resource with no related steps |
+| Scaling instances (1 user to 100+) | Standalone resource that doesn't belong to any flow |
+| Lifecycle variants (returns, reversals, alt payouts) | |
+| Per-user infra via `instance_resources` | |
+
+The compiler generates all individual resources (POs, IPDs, LTs, returns)
+from step definitions — do not manually build what the compiler produces.
 
 ---
 
 ## After you pick scope
 
-1. **Choose structure:** `funds_flows` for lifecycle demos, raw arrays for
-   isolated resources.
+1. **Choose structure:** `funds_flows` by default; raw arrays only for
+   truly isolated single resources.
 2. Generate **complete** `DataLoaderConfig` JSON (no placeholders).
 3. Validate mentally against **self-bootstrap** (connection + resources in-file).
 4. Run **`POST /api/validate-json`** (or user does); fix errors by path.

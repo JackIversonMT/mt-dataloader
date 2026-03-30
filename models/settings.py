@@ -38,3 +38,5 @@ class AppSettings(BaseSettings):
         le=500,
         description="Resources per DAG batch during generation runs",
     )
+    ngrok_authtoken: str = ""
+    ngrok_domain: str = ""

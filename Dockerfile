@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+ARG APP_VERSION=0.5.0
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.title="MT Dataloader"
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+RUN python -c "from pyngrok.installer import install_ngrok; from pyngrok.conf import PyngrokConfig; install_ngrok(PyngrokConfig())"
 
 COPY . .
 

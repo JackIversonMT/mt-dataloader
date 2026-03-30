@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
+from _version import __version__
 from helpers import set_templates
 from models import AppSettings
 from routers.cleanup import router as cleanup_router
@@ -23,6 +24,8 @@ from routers.execute import router as execute_router
 from routers.flows import router as flows_router
 from routers.runs import router as runs_router
 from routers.setup import router as setup_router
+from routers.tunnel import router as tunnel_router
+from tunnel import TunnelManager
 from webhooks import router as webhook_router, rebuild_correlation_index
 
 # ---------------------------------------------------------------------------
@@ -66,6 +69,7 @@ def _css_version() -> str:
 
 
 templates.env.globals["css_version"] = _css_version()
+templates.env.globals["app_version"] = __version__
 
 set_templates(templates)
 
@@ -107,8 +111,22 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     _configure_logging(settings)
     rebuild_correlation_index(settings.runs_dir)
-    logger.info("Dataloader started")
+
+    tunnel_mgr = TunnelManager(runs_dir=settings.runs_dir)
+    app.state.tunnel = tunnel_mgr
+
+    authtoken = settings.ngrok_authtoken or tunnel_mgr.saved_authtoken
+    if authtoken:
+        try:
+            domain = settings.ngrok_domain or tunnel_mgr.saved_domain or None
+            url = tunnel_mgr.start(authtoken, domain=domain)
+            logger.info("Tunnel auto-started: {}", url)
+        except Exception as exc:
+            logger.warning("Tunnel auto-start failed (start manually from /listen): {}", exc)
+
+    logger.info("Dataloader v{} started", __version__)
     yield
+    tunnel_mgr.stop()
     logger.info("Dataloader shutting down")
 
 
@@ -116,7 +134,12 @@ async def lifespan(app: FastAPI):
 # App creation
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="MT Dataloader", lifespan=lifespan)
+app = FastAPI(title="MT Dataloader", version=__version__, lifespan=lifespan)
+
+
+@app.get("/api/version", include_in_schema=False)
+async def get_version():
+    return {"version": __version__}
 
 static_dir = Path("static")
 if static_dir.exists():
@@ -131,3 +154,4 @@ app.include_router(execute_router)
 app.include_router(runs_router)
 app.include_router(cleanup_router)
 app.include_router(webhook_router)
+app.include_router(tunnel_router)

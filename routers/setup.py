@@ -44,6 +44,237 @@ from session import SessionState, sessions, prune_expired_sessions
 router = APIRouter(tags=["setup"])
 
 
+# ---------------------------------------------------------------------------
+# Shared validation pipeline
+# ---------------------------------------------------------------------------
+
+from dataclasses import dataclass, field as dc_field
+
+
+@dataclass
+class _PipelineResult:
+    """Intermediate result from the shared validate/revalidate pipeline."""
+    config: DataLoaderConfig
+    config_json_text: str
+    flow_irs: list
+    expanded_flows: list
+    mermaid_diagrams: list | None
+    view_data_cache: list | None
+    discovery: DiscoveryResult | None
+    org_registry: OrgRegistry | None
+    reconciliation: object | None
+    registry: RefRegistry
+    skip_refs: set = dc_field(default_factory=set)
+    update_refs: dict = dc_field(default_factory=dict)
+    batches: list = dc_field(default_factory=list)
+    preview_items: list = dc_field(default_factory=list)
+
+
+async def _validate_pipeline(
+    raw_json: bytes,
+    api_key: str,
+    org_id: str,
+    *,
+    reconcile_overrides: dict | None = None,
+    manual_mappings: dict | None = None,
+) -> _PipelineResult | str:
+    """Run the full validate pipeline: parse → compile → discover → reconcile → DAG.
+
+    Returns a ``_PipelineResult`` on success or an error-message string on failure.
+    """
+    # 1. Parse config
+    try:
+        config = DataLoaderConfig.model_validate_json(raw_json)
+    except ValidationError as e:
+        structured = format_validation_errors(e)
+        detail_lines = [f"• {err['path']}: {err['message']}" for err in structured]
+        return f"Config Validation Error\n" + ("\n".join(detail_lines) or str(e))
+
+    # 2. Compile
+    try:
+        authoring = AuthoringConfig(
+            config=config.model_copy(deep=True),
+            json_text=raw_json.decode(),
+            source_hash=hashlib.sha256(raw_json).hexdigest(),
+        )
+        plan = compile_to_plan(authoring)
+        config = plan.config
+        flow_irs = list(plan.flow_irs)
+        expanded_flows = list(plan.expanded_flows)
+        mermaid_diagrams = list(plan.mermaid_diagrams) if plan.mermaid_diagrams else None
+        view_data_cache = list(plan.view_data) if plan.view_data else None
+    except (ValueError, KeyError, NotImplementedError) as e:
+        return f"Compiler Error\n{e}"
+
+    # 3. Discover org
+    discovery: DiscoveryResult | None = None
+    org_registry: OrgRegistry | None = None
+    async with AsyncModernTreasury(
+        api_key=api_key, organization_id=org_id
+    ) as client:
+        try:
+            await client.ping()
+        except AuthenticationError:
+            return "Authentication Error\nInvalid API key or org ID"
+        try:
+            discovery = await discover_org(client, config=config)
+            org_registry = OrgRegistry.from_discovery(discovery)
+        except (APIConnectionError, APITimeoutError) as exc:
+            logger.warning("Discovery failed: {}", str(exc))
+
+    # 4. Registry + reconciliation
+    registry = RefRegistry()
+    known_refs: set[str] = set()
+    if org_registry is not None:
+        known_refs = org_registry.seed_engine_registry(registry)
+
+    reconciliation = None
+    skip_refs: set[str] = set()
+    if discovery is not None:
+        reconciliation = reconcile_config(config, discovery)
+
+        registered_refs: set[str] = set()
+        overrides = reconcile_overrides or {}
+        mappings = manual_mappings or {}
+
+        for m in reconciliation.matches:
+            if m.config_ref in overrides:
+                val = overrides[m.config_ref]
+                if isinstance(val, dict):
+                    m.use_existing = val.get("use_existing", True)
+                    if "discovered_id" in val:
+                        m.discovered_id = val["discovered_id"]
+                else:
+                    m.use_existing = bool(val)
+            if m.use_existing and m.config_ref not in registered_refs:
+                registry.register_or_update(m.config_ref, m.discovered_id)
+                skip_refs.add(m.config_ref)
+                registered_refs.add(m.config_ref)
+                for ck, cid in m.child_refs.items():
+                    registry.register_or_update(f"{m.config_ref}.{ck}", cid)
+
+        if mappings:
+            disc_by_id = build_discovered_id_lookup(discovery)
+            for config_ref, disc_id in mappings.items():
+                if not disc_id or config_ref in registered_refs:
+                    continue
+                if disc_by_id.get(disc_id):
+                    registry.register_or_update(config_ref, disc_id)
+                    skip_refs.add(config_ref)
+                    registered_refs.add(config_ref)
+                    if config_ref in reconciliation.unmatched_config:
+                        reconciliation.unmatched_config.remove(config_ref)
+
+    # 5. DAG dry-run
+    try:
+        batches = dry_run(config, known_refs, skip_refs=skip_refs)
+    except CycleError as e:
+        return f"Cycle Error\nCircular dependency: {e}"
+    except KeyError as e:
+        return f"Reference Error\n{e}"
+
+    # 6. Build preview
+    resource_map = {typed_ref_for(r): r for r in all_resources(config)}
+    preview_items = build_preview(
+        batches, resource_map,
+        skip_refs=skip_refs, reconciliation=reconciliation,
+    )
+
+    config_json_text = json.dumps(
+        json.loads(raw_json), indent=2, ensure_ascii=False
+    )
+
+    return _PipelineResult(
+        config=config,
+        config_json_text=config_json_text,
+        flow_irs=flow_irs,
+        expanded_flows=expanded_flows,
+        mermaid_diagrams=mermaid_diagrams,
+        view_data_cache=view_data_cache,
+        discovery=discovery,
+        org_registry=org_registry,
+        reconciliation=reconciliation,
+        registry=registry,
+        skip_refs=skip_refs,
+        batches=batches,
+        preview_items=preview_items,
+    )
+
+
+def _pipeline_result_to_session(
+    result: _PipelineResult,
+    api_key: str,
+    org_id: str,
+    *,
+    working_config_json: str | None = None,
+    generation_recipes: dict | None = None,
+) -> SessionState:
+    """Build a SessionState from a pipeline result."""
+    token = secrets.token_urlsafe(32)
+    return SessionState(
+        session_token=token,
+        api_key=api_key,
+        org_id=org_id,
+        config=result.config,
+        config_json_text=result.config_json_text,
+        registry=result.registry,
+        batches=result.batches,
+        preview_items=result.preview_items,
+        org_registry=result.org_registry,
+        discovery=result.discovery,
+        reconciliation=result.reconciliation,
+        skip_refs=result.skip_refs,
+        flow_ir=result.flow_irs,
+        expanded_flows=result.expanded_flows,
+        pattern_flow_ir=result.flow_irs,
+        pattern_expanded_flows=result.expanded_flows,
+        base_config_json=result.config_json_text,
+        mermaid_diagrams=result.mermaid_diagrams,
+        view_data_cache=result.view_data_cache,
+        working_config_json=working_config_json or result.config_json_text,
+        generation_recipes=generation_recipes or {},
+    )
+
+
+def _render_preview_or_redirect(
+    request: Request,
+    session: SessionState,
+) -> HTMLResponse:
+    """Return an HX-Redirect to /flows or render the preview page."""
+    if session.flow_ir:
+        resp = HTMLResponse(content="", status_code=200)
+        resp.headers["HX-Redirect"] = f"/flows?session_token={session.session_token}"
+        return resp
+
+    templates = get_templates()
+    return templates.TemplateResponse(
+        request,
+        "preview.html",
+        {
+            "session_token": session.session_token,
+            "batches": session.batches,
+            "preview_items": session.preview_items,
+            "config_hash": config_hash(session.config),
+            "resource_count": sum(len(b) for b in session.batches),
+            "deletable_count": sum(1 for i in session.preview_items if i["deletable"]),
+            "non_deletable_count": sum(1 for i in session.preview_items if not i["deletable"]),
+            "display_phases": DisplayPhase,
+            "discovery": session.discovery,
+            "reconciliation": session.reconciliation,
+            "config_json_text": session.config_json_text,
+            "discovered_by_type": build_discovered_by_type(session.discovery),
+            "has_funds_flows": bool(session.flow_ir),
+            "available_connections": build_available_connections(
+                session.config, session.discovery,
+            ),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
 @router.get("/", include_in_schema=False)
 async def root():
     return RedirectResponse(url="/setup")
@@ -149,7 +380,6 @@ async def validate(
     config_json: str | None = Form(None),
 ):
     """Validate API key, discover org, parse config, compile, compute DAG, cache state."""
-    templates = get_templates()
     prune_expired_sessions()
 
     if config_json and config_json.strip():
@@ -159,139 +389,14 @@ async def validate(
     else:
         return error_response("Missing Config", "Upload a JSON file or paste JSON directly.")
 
-    try:
-        config = DataLoaderConfig.model_validate_json(raw_json)
-    except ValidationError as e:
-        structured = format_validation_errors(e)
-        detail_lines = [f"• {err['path']}: {err['message']}" for err in structured]
-        return error_response(
-            "Config Validation Error",
-            "\n".join(detail_lines) or str(e),
-        )
+    result = await _validate_pipeline(raw_json, api_key, org_id)
+    if isinstance(result, str):
+        title, _, detail = result.partition("\n")
+        return error_response(title, detail)
 
-    try:
-        authoring = AuthoringConfig(
-            config=config.model_copy(deep=True),
-            json_text=raw_json.decode(),
-            source_hash=hashlib.sha256(raw_json).hexdigest(),
-        )
-        plan = compile_to_plan(authoring)
-        config = plan.config
-        flow_irs = list(plan.flow_irs)
-        expanded_flows = list(plan.expanded_flows)
-        mermaid_diagrams = list(plan.mermaid_diagrams) if plan.mermaid_diagrams else None
-        view_data_cache = list(plan.view_data) if plan.view_data else None
-    except (ValueError, KeyError, NotImplementedError) as e:
-        return error_response("Compiler Error", str(e))
-
-    async with AsyncModernTreasury(
-        api_key=api_key, organization_id=org_id
-    ) as client:
-        try:
-            await client.ping()
-        except AuthenticationError:
-            return error_response(
-                "Authentication Error", "Invalid API key or org ID"
-            )
-
-        discovery: DiscoveryResult | None = None
-        org_registry: OrgRegistry | None = None
-        try:
-            discovery = await discover_org(client, config=config)
-            org_registry = OrgRegistry.from_discovery(discovery)
-        except (APIConnectionError, APITimeoutError) as exc:
-            logger.warning("Discovery failed: {}", str(exc))
-
-    registry = RefRegistry()
-    known_refs: set[str] = set()
-    if org_registry is not None:
-        known_refs = org_registry.seed_engine_registry(registry)
-
-    reconciliation = None
-    skip_refs: set[str] = set()
-    if discovery is not None:
-        reconciliation = reconcile_config(config, discovery)
-        for m in reconciliation.matches:
-            if m.use_existing:
-                registry.register_or_update(m.config_ref, m.discovered_id)
-                skip_refs.add(m.config_ref)
-                for ck, cid in m.child_refs.items():
-                    registry.register_or_update(f"{m.config_ref}.{ck}", cid)
-
-    try:
-        batches = dry_run(config, known_refs, skip_refs=skip_refs)
-    except CycleError as e:
-        return error_response("Cycle Error", f"Circular dependency: {e}")
-    except KeyError as e:
-        return error_response("Reference Error", str(e))
-
-    resource_map = {typed_ref_for(r): r for r in all_resources(config)}
-    preview_items = build_preview(
-        batches, resource_map,
-        skip_refs=skip_refs, reconciliation=reconciliation,
-    )
-
-    config_json_text = json.dumps(
-        json.loads(raw_json), indent=2, ensure_ascii=False
-    )
-    working_config_json = config_json_text
-
-    token = secrets.token_urlsafe(32)
-    sessions[token] = SessionState(
-        session_token=token,
-        api_key=api_key,
-        org_id=org_id,
-        config=config,
-        config_json_text=config_json_text,
-        registry=registry,
-        batches=batches,
-        preview_items=preview_items,
-        org_registry=org_registry,
-        discovery=discovery,
-        reconciliation=reconciliation,
-        skip_refs=skip_refs,
-        flow_ir=flow_irs,
-        expanded_flows=expanded_flows,
-        pattern_flow_ir=flow_irs,
-        pattern_expanded_flows=expanded_flows,
-        base_config_json=config_json_text,
-        mermaid_diagrams=mermaid_diagrams,
-        view_data_cache=view_data_cache,
-        working_config_json=working_config_json,
-    )
-
-    had_funds_flows = bool(flow_irs)
-    if had_funds_flows:
-        resp = HTMLResponse(content="", status_code=200)
-        resp.headers["HX-Redirect"] = f"/flows?session_token={token}"
-        return resp
-
-    return templates.TemplateResponse(
-        request,
-        "preview.html",
-        {
-            "session_token": token,
-            "batches": batches,
-            "preview_items": preview_items,
-            "config_hash": config_hash(config),
-            "resource_count": sum(len(b) for b in batches),
-            "deletable_count": sum(
-                1
-                for item in preview_items
-                if item["deletable"]
-            ),
-            "non_deletable_count": sum(
-                1
-                for item in preview_items
-                if not item["deletable"]
-            ),
-            "display_phases": DisplayPhase,
-            "discovery": discovery,
-            "config_json_text": config_json_text,
-            "discovered_by_type": build_discovered_by_type(discovery),
-            "available_connections": build_available_connections(config, discovery),
-        },
-    )
+    session = _pipeline_result_to_session(result, api_key, org_id)
+    sessions[session.session_token] = session
+    return _render_preview_or_redirect(request, session)
 
 
 @router.post("/api/revalidate")
@@ -302,171 +407,45 @@ async def revalidate(
     reconcile_overrides: str | None = Form(None),
 ):
     """Re-validate edited JSON using credentials from an existing session."""
-    templates = get_templates()
-    session = sessions.get(session_token)
-    if not session:
+    old_session = sessions.get(session_token)
+    if not old_session:
         return error_response("Session Expired", "Please start over from Setup.")
 
     raw_json = config_json.strip().encode()
-    try:
-        config = DataLoaderConfig.model_validate_json(raw_json)
-    except ValidationError as e:
-        structured = format_validation_errors(e)
-        detail_lines = [f"• {err['path']}: {err['message']}" for err in structured]
-        return error_response(
-            "Config Validation Error",
-            "\n".join(detail_lines) or str(e),
-        )
 
-    try:
-        authoring = AuthoringConfig(
-            config=config.model_copy(deep=True),
-            json_text=raw_json.decode(),
-            source_hash=hashlib.sha256(raw_json).hexdigest(),
-        )
-        plan = compile_to_plan(authoring)
-        config = plan.config
-        flow_irs_reval = list(plan.flow_irs)
-        expanded_flows_reval = list(plan.expanded_flows)
-        mermaid_diagrams_reval = list(plan.mermaid_diagrams) if plan.mermaid_diagrams else None
-        view_data_reval = list(plan.view_data) if plan.view_data else None
-    except (ValueError, KeyError, NotImplementedError) as e:
-        return error_response("Compiler Error", str(e))
-
-    async with AsyncModernTreasury(
-        api_key=session.api_key, organization_id=session.org_id
-    ) as client:
-        discovery: DiscoveryResult | None = None
-        org_registry: OrgRegistry | None = None
+    overrides: dict = {}
+    manual_maps: dict = {}
+    if reconcile_overrides:
         try:
-            discovery = await discover_org(client, config=config)
-            org_registry = OrgRegistry.from_discovery(discovery)
-        except (APIConnectionError, APITimeoutError) as exc:
-            logger.warning("Discovery failed during revalidate: {}", str(exc))
+            raw_ov = json.loads(reconcile_overrides)
+            overrides = raw_ov.get("overrides", raw_ov) if isinstance(raw_ov, dict) else {}
+            if isinstance(raw_ov, dict):
+                manual_maps = raw_ov.get("manual_mappings", {})
+        except json.JSONDecodeError:
+            pass
 
-    registry = RefRegistry()
-    known_refs: set[str] = set()
-    if org_registry is not None:
-        known_refs = org_registry.seed_engine_registry(registry)
-
-    reconciliation = None
-    skip_refs: set[str] = set()
-    if discovery is not None:
-        reconciliation = reconcile_config(config, discovery)
-        overrides: dict[str, bool | dict] = {}
-        manual_mappings: dict[str, str] = {}
-        if reconcile_overrides:
-            try:
-                raw_ov = json.loads(reconcile_overrides)
-                overrides = raw_ov.get("overrides", raw_ov) if isinstance(raw_ov, dict) else {}
-                if isinstance(raw_ov, dict):
-                    manual_mappings = raw_ov.get("manual_mappings", {})
-            except json.JSONDecodeError:
-                pass
-
-        registered_refs: set[str] = set()
-        for m in reconciliation.matches:
-            if m.config_ref in overrides:
-                val = overrides[m.config_ref]
-                if isinstance(val, dict):
-                    m.use_existing = val.get("use_existing", True)
-                    if "discovered_id" in val:
-                        m.discovered_id = val["discovered_id"]
-                else:
-                    m.use_existing = bool(val)
-            if m.use_existing and m.config_ref not in registered_refs:
-                registry.register_or_update(m.config_ref, m.discovered_id)
-                skip_refs.add(m.config_ref)
-                registered_refs.add(m.config_ref)
-                for ck, cid in m.child_refs.items():
-                    registry.register_or_update(f"{m.config_ref}.{ck}", cid)
-
-        if manual_mappings and discovery is not None:
-            disc_by_id = build_discovered_id_lookup(discovery)
-            for config_ref, disc_id in manual_mappings.items():
-                if not disc_id or config_ref in registered_refs:
-                    continue
-                disc_info = disc_by_id.get(disc_id)
-                if disc_info:
-                    registry.register_or_update(config_ref, disc_id)
-                    skip_refs.add(config_ref)
-                    registered_refs.add(config_ref)
-                    if config_ref in reconciliation.unmatched_config:
-                        reconciliation.unmatched_config.remove(config_ref)
-
-    try:
-        batches = dry_run(config, known_refs, skip_refs=skip_refs)
-    except CycleError as e:
-        return error_response("Cycle Error", f"Circular dependency: {e}")
-    except KeyError as e:
-        return error_response("Reference Error", str(e))
-
-    resource_map = {typed_ref_for(r): r for r in all_resources(config)}
-    preview_items = build_preview(
-        batches, resource_map,
-        skip_refs=skip_refs, reconciliation=reconciliation,
+    result = await _validate_pipeline(
+        raw_json,
+        old_session.api_key,
+        old_session.org_id,
+        reconcile_overrides=overrides,
+        manual_mappings=manual_maps,
     )
+    if isinstance(result, str):
+        title, _, detail = result.partition("\n")
+        return error_response(title, detail)
 
-    config_json_text = json.dumps(
-        json.loads(raw_json), indent=2, ensure_ascii=False
+    session = _pipeline_result_to_session(
+        result,
+        old_session.api_key,
+        old_session.org_id,
+        working_config_json=old_session.working_config_json,
+        generation_recipes=old_session.generation_recipes,
     )
-
-    new_token = secrets.token_urlsafe(32)
-    sessions[new_token] = SessionState(
-        session_token=new_token,
-        api_key=session.api_key,
-        org_id=session.org_id,
-        config=config,
-        config_json_text=config_json_text,
-        registry=registry,
-        batches=batches,
-        preview_items=preview_items,
-        org_registry=org_registry,
-        discovery=discovery,
-        reconciliation=reconciliation,
-        skip_refs=skip_refs,
-        flow_ir=flow_irs_reval,
-        expanded_flows=expanded_flows_reval,
-        pattern_flow_ir=flow_irs_reval,
-        pattern_expanded_flows=expanded_flows_reval,
-        base_config_json=config_json_text,
-        mermaid_diagrams=mermaid_diagrams_reval,
-        view_data_cache=view_data_reval,
-        working_config_json=session.working_config_json,
-        generation_recipes=session.generation_recipes,
-    )
-
+    sessions[session.session_token] = session
     del sessions[session_token]
 
-    if flow_irs_reval:
-        resp = HTMLResponse(content="", status_code=200)
-        resp.headers["HX-Redirect"] = f"/flows?session_token={new_token}"
-        return resp
-
-    return templates.TemplateResponse(
-        request,
-        "preview.html",
-        {
-            "session_token": new_token,
-            "batches": batches,
-            "preview_items": preview_items,
-            "config_hash": config_hash(config),
-            "resource_count": sum(len(b) for b in batches),
-            "deletable_count": sum(
-                1 for item in preview_items if item["deletable"]
-            ),
-            "non_deletable_count": sum(
-                1 for item in preview_items if not item["deletable"]
-            ),
-            "display_phases": DisplayPhase,
-            "discovery": discovery,
-            "reconciliation": reconciliation,
-            "config_json_text": config_json_text,
-            "discovered_by_type": build_discovered_by_type(discovery),
-            "has_funds_flows": bool(flow_irs_reval),
-            "available_connections": build_available_connections(config, discovery),
-        },
-    )
+    return _render_preview_or_redirect(request, session)
 
 
 @router.get("/preview", include_in_schema=False)

@@ -41,7 +41,7 @@
   border-bottom-right-radius: 0.5rem;
   border: 1px solid rgba(0, 0, 0, 0.09); /* border-alpha-black-100 */
   border-top: 0; /* border-t-0 */
-  background-color: #FFFFFF;
+  background-color: var(--white);
   padding: 0.75rem; /* p-s = 12px */
 }
 
@@ -76,7 +76,7 @@
 }
 
 .pagination-size-select:hover {
-  color: #303030; /* text-gray-800 */
+  color: var(--gray-800); /* text-gray-800 */
 }
 
 /* ===== Nav Controls — PaginationRow.tsx line 93 ===== */
@@ -111,7 +111,7 @@
 
 .pagination-btn:hover:not([disabled]) {
   background-color: #F1F0EC; /* bg-gray-50 */
-  color: #303030; /* text-gray-800 */
+  color: var(--gray-800); /* text-gray-800 */
 }
 
 .pagination-btn[disabled] {

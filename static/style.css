@@ -1,6 +1,6 @@
 /* App-level overrides for kit page-chrome.css */
 .page-body {
-    background-color: var(--mt-gray-25, #FAFAFA);
+    background-color: var(--app-background);
     min-height: 0;
 }
 .page-body--full-height {
@@ -13,93 +13,72 @@
 }
 
 :root {
-    /* MT 2025 Brand Colors (from tailwind.config.js) */
-    --bg:             #FAFAFA;
-    --surface:        #FFFFFF;
-    --border:         #DEDDD7;
-    --text:           #303030;
-    --text-muted:     #575757;
-    --primary:        #008060;
-    --primary-hover:  #006452;
-    --danger:         #C73D4F;
-    --danger-hover:   #9F2946;
-    --warning:        #BF4E36;
+    /* Core tokens loaded from static/css/tokens.css.
+       This block defines app-specific semantic tokens only. */
 
-    /* Status colors */
-    --status-pending:  #AAA9A4;
-    --status-creating: #008060;
-    --status-created:  #008060;
-    --status-waiting:  #C6833F;
-    --status-error:    #C73D4F;
-    --status-archived: #7061C2;
-    --status-skipped:  #727272;
-    --status-staged:   #8A8985;
-    --status-fired:    #008060;
-    --tunnel-ok:       var(--mt-green-50);
-    --tunnel-warn:     #FFEBD5;
+    /* Status colors (uses MINT scale) */
+    --status-pending:  var(--gray-300);
+    --status-creating: var(--green-500);
+    --status-created:  var(--green-500);
+    --status-waiting:  var(--yellow-400);
+    --status-error:    var(--red-500);
+    --status-archived: var(--purple-500);
+    --status-skipped:  var(--gray-500);
+    --status-staged:   var(--gray-400);
+    --status-fired:    var(--green-500);
+    --tunnel-ok:       var(--green-50);
+    --tunnel-warn:     var(--yellow-50);
 
-    /* Type badge colors */
-    --type-connection:  #211D3D;
-    --type-entity:      #88637B;
-    --type-ledger:      #386FB1;
-    --type-payment:     #008060;
-    --type-lifecycle:   #976740;
-    --type-mutation:    #727272;
+    /* Type badge colors (uses MINT scale) */
+    --type-connection:  var(--purple-900);
+    --type-entity:      var(--violet-500);
+    --type-ledger:      var(--blue-500);
+    --type-payment:     var(--green-500);
+    --type-lifecycle:   var(--yellow-500);
+    --type-mutation:    var(--gray-500);
 
-    /* Sidebar */
-    --sidebar-bg:      #222222;
-    --sidebar-text:    #C5C4BF;
-    --sidebar-hover:   #444444;
-    --sidebar-active:  #304A4A;
+    /* Sidebar (uses MINT scale) */
+    --sidebar-bg:      var(--gray-900);
+    --sidebar-text:    var(--gray-200);
+    --sidebar-hover:   var(--gray-700);
+    --sidebar-active:  var(--mist-800);
     --sidebar-width:   220px;
 
-    /* Shared */
-    --radius: 6px;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    /* Turbogrid token bridge (field status) */
+    --field-success-bg:     var(--green-50);
+    --field-success-border: var(--green-100);
+    --field-success-text:   var(--green-700);
+    --field-error-bg:       var(--red-50);
+    --field-error-border:   var(--red-100);
+    --field-error-text:     var(--red-700);
+    --field-warning-bg:     var(--yellow-50);
+    --field-warning-border: var(--yellow-100);
+    --field-warning-text:   var(--yellow-700);
 
-    /* Turbogrid token bridge (field status colors) */
-    --field-success-bg: var(--mt-green-50);
-    --field-success-border: #BEE6D5;
-    --field-success-text: var(--mt-green-700);
-    --field-error-bg: var(--mt-red-50);
-    --field-error-border: #FFCED3;
-    --field-error-text: #7C1B3D;
-    --field-warning-bg: #FEF3CD;
-    --field-warning-border: #F5D4AD;
-    --field-warning-text: #92400E;
-
-    /* Turbogrid border/background bridge */
-    --border-muted: #F2F1ED;
-    --border-strong: #C5C4BF;
-    --border-alpha: rgba(0, 0, 0, 0.12);
-    --background-light: var(--mt-gray-50);
-    --background-default: #FFFFFF;
-    --button-background-primary: #386FB1;
-
-    /* Resource type colors */
-    --rt-connection-bg: #F0EFFF; --rt-connection-fg: #423B72; --rt-connection-border: #D8D7F8;
-    --rt-entity-bg: #FCF4FA; --rt-entity-fg: #6D4C61; --rt-entity-border: #EBD7E5;
-    --rt-ledger-bg: #EAF1FF; --rt-ledger-fg: #204571; --rt-ledger-border: #CCDEFF;
-    --rt-account-bg: var(--mt-green-50); --rt-account-fg: var(--mt-green-700); --rt-account-border: #BEE6D5;
-    --rt-payment-bg: var(--mt-green-50); --rt-payment-fg: var(--mt-green-700); --rt-payment-border: #BEE6D5;
-    --rt-ipd-bg: #FFEBD5; --rt-ipd-fg: #724F3B; --rt-ipd-border: #F5D4AD;
-    --rt-expected-bg: #F0EFFF; --rt-expected-fg: #423B72; --rt-expected-border: #D4D2F2;
-    --rt-return-bg: var(--mt-red-50); --rt-return-fg: #C73D4F; --rt-return-border: #F5C4CC;
-    --rt-reversal-bg: var(--mt-red-50); --rt-reversal-fg: #C73D4F; --rt-reversal-border: #F5C4CC;
-    --rt-lt-bg: #EAF1FF; --rt-lt-fg: #204571; --rt-lt-border: #CCDEFF;
-    --rt-tlt-bg: #EDE9FE; --rt-tlt-fg: #5B21B6; --rt-tlt-border: #C4B5FD;
-    --rt-neutral-bg: #F2F1ED; --rt-neutral-fg: #575757; --rt-neutral-border: #DEDDD7;
+    /* Resource type colors (uses MINT scale) */
+    --rt-connection-bg: var(--purple-50);  --rt-connection-fg: var(--purple-700); --rt-connection-border: var(--purple-100);
+    --rt-entity-bg: var(--violet-25);      --rt-entity-fg: var(--violet-600);     --rt-entity-border: var(--violet-100);
+    --rt-ledger-bg: var(--blue-50);        --rt-ledger-fg: var(--blue-700);       --rt-ledger-border: var(--blue-100);
+    --rt-account-bg: var(--green-50);      --rt-account-fg: var(--green-700);     --rt-account-border: var(--green-100);
+    --rt-payment-bg: var(--green-50);      --rt-payment-fg: var(--green-700);     --rt-payment-border: var(--green-100);
+    --rt-ipd-bg: var(--yellow-50);         --rt-ipd-fg: var(--yellow-600);        --rt-ipd-border: var(--yellow-100);
+    --rt-expected-bg: var(--purple-50);    --rt-expected-fg: var(--purple-700);    --rt-expected-border: var(--purple-100);
+    --rt-return-bg: var(--red-50);         --rt-return-fg: var(--red-500);        --rt-return-border: var(--red-100);
+    --rt-reversal-bg: var(--red-50);       --rt-reversal-fg: var(--red-500);      --rt-reversal-border: var(--red-100);
+    --rt-lt-bg: var(--blue-50);            --rt-lt-fg: var(--blue-700);           --rt-lt-border: var(--blue-100);
+    --rt-tlt-bg: var(--purple-50);         --rt-tlt-fg: var(--purple-700);        --rt-tlt-border: var(--purple-100);
+    --rt-neutral-bg: var(--gray-50);       --rt-neutral-fg: var(--gray-600);      --rt-neutral-border: var(--gray-100);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv08", "cv10", "ss07", "ss08";
-    background: var(--bg);
-    color: var(--text);
+    background: var(--app-background);
+    color: var(--text-default);
     margin: 0;
     line-height: 1.5;
 }
@@ -139,7 +118,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 16px 16px 24px;
-    color: #fff;
+    color: var(--white);
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
@@ -164,7 +143,7 @@ body {
 .org-id {
     font-size: 11px;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-    color: #AAA9A4;
+    color: var(--gray-300);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -199,14 +178,19 @@ body {
 .sidebar-link.active .nav-icon {
     opacity: 1;
 }
-.sidebar-link:hover { background: var(--sidebar-hover); color: #fff; }
-.sidebar-link.active { background: var(--sidebar-active); color: #fff; }
+.sidebar-link:hover { background: var(--sidebar-hover); color: var(--white); }
+.sidebar-link.active { background: var(--sidebar-active); color: var(--white); }
 .sidebar-footer {
     padding: 12px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
     margin-top: auto;
 }
-.sidebar-footer:empty { display: none; }
+.sidebar-version {
+    font-size: 11px;
+    color: var(--gray-500);
+    display: block;
+    margin-top: 4px;
+}
 
 #content {
     overflow-y: auto;
@@ -319,17 +303,17 @@ body {
     border: 1px solid transparent;
 }
 .status-text { font-size: inherit; color: inherit; }
-.resource-row.created .status-indicator  { background: var(--mt-green-50); color: var(--mt-green-700); border-color: #BEE6D5; }
-.resource-row.error .status-indicator    { background: var(--mt-red-50); color: #C73D4F; border-color: #FFCED3; }
-.resource-row.waiting .status-indicator  { background: #FFEBD5; color: #976740; border-color: #FFD6A2; }
-.resource-row.staged .status-indicator   { background: #F2F1ED; color: #575757; border-color: #DEDDD7; }
-.resource-row.creating .status-indicator { background: var(--mt-green-50); color: var(--mt-green-700); border-color: #BEE6D5; }
-.resource-row.pending .status-indicator  { background: #F2F1ED; color: #575757; border-color: #DEDDD7; }
-.cleanup-row.deleted .status-indicator   { background: var(--mt-green-50); color: var(--mt-green-700); border-color: #BEE6D5; }
-.cleanup-row.removed .status-indicator   { background: var(--mt-green-50); color: var(--mt-green-700); border-color: #BEE6D5; }
-.cleanup-row.archived .status-indicator  { background: #F0EFFF; color: #423B72; border-color: #D8D7F8; }
-.cleanup-row.failed .status-indicator    { background: var(--mt-red-50); color: #C73D4F; border-color: #FFCED3; }
-.cleanup-row.skipped .status-indicator   { background: #F2F1ED; color: #575757; border-color: #DEDDD7; }
+.resource-row.created .status-indicator  { background: var(--mt-green-50); color: var(--mt-green-700); border-color: var(--green-100); }
+.resource-row.error .status-indicator    { background: var(--mt-red-50); color: var(--red-500); border-color: var(--red-100); }
+.resource-row.waiting .status-indicator  { background: var(--yellow-50); color: #976740; border-color: #FFD6A2; }
+.resource-row.staged .status-indicator   { background: var(--gray-50); color: var(--gray-600); border-color: var(--gray-100); }
+.resource-row.creating .status-indicator { background: var(--mt-green-50); color: var(--mt-green-700); border-color: var(--green-100); }
+.resource-row.pending .status-indicator  { background: var(--gray-50); color: var(--gray-600); border-color: var(--gray-100); }
+.cleanup-row.deleted .status-indicator   { background: var(--mt-green-50); color: var(--mt-green-700); border-color: var(--green-100); }
+.cleanup-row.removed .status-indicator   { background: var(--mt-green-50); color: var(--mt-green-700); border-color: var(--green-100); }
+.cleanup-row.archived .status-indicator  { background: var(--purple-50); color: var(--purple-700); border-color: var(--purple-100); }
+.cleanup-row.failed .status-indicator    { background: var(--mt-red-50); color: var(--red-500); border-color: var(--red-100); }
+.cleanup-row.skipped .status-indicator   { background: var(--gray-50); color: var(--gray-600); border-color: var(--gray-100); }
 .ref-name { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 0.825rem; }
 .resource-display-name {
     font-size: 0.84rem;
@@ -459,8 +443,8 @@ body {
 .error-alert {
     display: flex; flex-direction: column; gap: 8px;
     background: var(--mt-red-50);
-    border: 1px solid #FFCED3;
-    border-left: 3px solid #C73D4F;
+    border: 1px solid var(--red-100);
+    border-left: 3px solid var(--red-500);
     border-radius: var(--radius); padding: 12px 16px;
 }
 .error-alert h3 { margin: 0; color: var(--status-error); font-size: 0.85rem; }
@@ -476,8 +460,8 @@ body {
     font-size: 0.7rem; font-weight: 700; padding: 2px 6px;
     border-radius: 3px; min-width: 50px; text-align: center;
 }
-.issue-row.issue-error .issue-level { background: var(--mt-red-50); color: #C73D4F; border: 1px solid #FFCED3; }
-.issue-row.issue-warning .issue-level { background: #FFEBD5; color: #976740; border: 1px solid #FFD6A2; }
+.issue-row.issue-error .issue-level { background: var(--mt-red-50); color: var(--red-500); border: 1px solid var(--red-100); }
+.issue-row.issue-warning .issue-level { background: var(--yellow-50); color: #976740; border: 1px solid #FFD6A2; }
 .issue-ref { font-size: 0.8rem; }
 
 /* --- Cleanup rows (status backgrounds overlay IndexTable rows) --- */
@@ -498,7 +482,7 @@ body {
 .run-complete {
     display: flex; flex-direction: column; gap: 12px;
     background: var(--mt-green-50);
-    border: 1px solid #BEE6D5;
+    border: 1px solid var(--green-100);
     border-radius: var(--radius); padding: 20px; margin-top: 20px;
 }
 .run-complete h3 { margin: 0; color: var(--status-created); }
@@ -513,7 +497,7 @@ body {
 .cleanup-complete {
     display: flex; flex-direction: column; gap: 12px;
     background: var(--mt-green-50);
-    border: 1px solid #BEE6D5;
+    border: 1px solid var(--green-100);
     border-radius: var(--radius); padding: 20px; margin-top: 20px;
 }
 
@@ -691,13 +675,128 @@ a.doc-link:hover .sandbox-badge {
 /* --- Accordion (shared — mt-patterns.css <details> variant is canonical) --- */
 .accordion { margin-top: 8px; }
 
-/* --- Tunnel banner --- */
+/* --- Tunnel banner (legacy, kept for fallback) --- */
 .tunnel-banner {
     padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px;
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .tunnel-ok { background: var(--tunnel-ok); border: 1px solid #a3cfbb; }
 .tunnel-warn { background: var(--tunnel-warn); border: 1px solid #ffc107; }
+
+/* --- Tunnel setup card --- */
+.tunnel-setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+@media (max-width: 768px) {
+    .tunnel-setup-grid { grid-template-columns: 1fr; }
+}
+.tunnel-setup-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.tunnel-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.tunnel-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-700);
+}
+.tunnel-hint {
+    font-size: 11px;
+    color: var(--gray-500);
+}
+.tunnel-hint a {
+    color: var(--blue-500);
+}
+.tunnel-input-row {
+    display: flex;
+    gap: 8px;
+}
+.tunnel-input-row .mt-input {
+    flex: 1;
+}
+.tunnel-btn-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.tunnel-url-box,
+.tunnel-register-box {
+    background: var(--gray-50, #F5F5F0);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+}
+.tunnel-url-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+    margin-bottom: 6px;
+}
+.tunnel-url-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.tunnel-url-display code {
+    font-size: 13px;
+    padding: 4px 8px;
+    background: var(--white);
+    border: 1px solid rgba(0, 0, 0, 0.09);
+    border-radius: 4px;
+    word-break: break-all;
+}
+.tunnel-register-status {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.tunnel-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.tunnel-dot--connected {
+    background: var(--green-500);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+.tunnel-dot--disconnected {
+    background: var(--gray-400);
+}
+.tunnel-instructions {
+    margin-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding-top: 12px;
+}
+.tunnel-instructions summary {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-600);
+    cursor: pointer;
+}
+.tunnel-steps {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--gray-600);
+}
+.tunnel-steps a {
+    color: var(--blue-500);
+}
 
 /* --- Listen page --- */
 .listen-toolbar {
@@ -1142,7 +1241,7 @@ svg.lock-icon { display: none; }
     white-space: nowrap;
 }
 .timing-pill-t0 {
-    background: var(--accent, #2563eb); color: #fff;
+    background: var(--accent, #2563eb); color: var(--white);
 }
 .timing-pill-offset {
     background: var(--surface); color: var(--text);
