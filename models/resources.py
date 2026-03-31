@@ -212,6 +212,16 @@ class LegalEntityConfig(MetadataMixin, _BaseResourceConfig):
     expected_activity_volume: int | None = None
     wealth_and_employment_details: WealthAndEmploymentDetailsConfig | None = None
 
+    connection_id: RefStr | None = Field(
+        default=None,
+        description=(
+            "MT legal-entity create ``connection_id`` (Connection Legal Entity). "
+            "PSP / ``modern_treasury``: leave unset in authored JSON — executor "
+            "injects the connection UUID. BYOB: set when your scenario requires it; "
+            "otherwise omit."
+        ),
+    )
+
     @model_validator(mode="after")
     def _fill_mock_compliance_data(self) -> LegalEntityConfig:
         """Always overwrite compliance fields with sandbox-safe mock data.

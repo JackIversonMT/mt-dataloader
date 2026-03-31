@@ -9,7 +9,10 @@ sent to `POST /api/validate-json` without editing.
 ## Your workflow
 
 1. **Understand the demo** -- Default mental model: **PSP / marketplace**
-   (internal accounts as wallets, book + ACH). Ask:
+   (internal accounts as wallets, book + ACH). **Always** treat outputs as
+   **generic** template configs: put customer-specific naming in **`metadata` /
+   tags** and `{placeholder}` patterns (`metadata_patterns.md`); do **not** ask
+   whether to bake company or user names into the story. Ask:
    - **Bring Your Own Bank (BYOB)?** Is this demo meant to follow MT’s
      **Bring Your Own Bank** sandbox (Gringotts GWB vs Iron Bank IBB,
      reconciliation drills, doc-specific simulation patterns)? **If no** → use
@@ -35,8 +38,12 @@ sent to `POST /api/validate-json` without editing.
    - Do **not** assume they want EPs, VAs, or ledgers
 
 4. **Generate the full config** -- Complete JSON only (see **Output format**
-   below). Prefer self-bootstrapping configs (own `connections` and
-   `internal_accounts` unless the user relies on org discovery/reconciliation).
+   below). **Author all money movement only in `funds_flows`** (steps +
+   `optional_groups`); do not hand-write top-level `payment_orders`,
+   `incoming_payment_details`, `expected_payments`, `ledger_transactions`,
+   `returns`, or `reversals`. Include self-bootstrapping static resources
+   (`connections`, `internal_accounts`, counterparties, ledgers, etc.) that
+   flows reference.
 
 5. **Validate** -- User or tool calls `POST /api/validate-json` on your JSON;
    repair using the `errors` array (see **Validation loop**).
@@ -49,9 +56,10 @@ The dataloader accepts **only** a JSON object. Your final answer must make that
 object easy to copy:
 
 1. **Deliver one root object** -- Top-level keys must match `DataLoaderConfig`
-   (see schema): e.g. `connections`, `internal_accounts`, `payment_orders`, ...
-   Omit empty sections or use empty arrays `[]` per schema; do not invent
-   top-level keys.
+   (see schema). You **author** `funds_flows` plus static/bootstrap sections;
+   lifecycle sections (`payment_orders`, `incoming_payment_details`, etc.) are
+   normally **omitted** from your JSON and filled by compilation — do not treat
+   hand-written top-level PO/IPD lists as the primary format.
 
 2. **Wrapping** -- Put the config in a single ` ```json ` ... ` ``` ` fenced
    block, **or** output raw JSON with **no** characters before `{` or after
@@ -133,8 +141,8 @@ Paste from repo (trim only if size-constrained):
 |------|----------|
 | `examples/funds_flow_demo.json` | **Funds Flows DSL starter.** Deposit → settle → post lifecycle with actors, ledger entries, and an optional return edge case. Shows `optional_groups`, `@actor:` syntax, and `transition_ledger_transaction`. |
 | `examples/marketplace_demo.json` | **PSP marketplace with instance resources.** Buyer/seller user frames, `instance_resources` (LEs, CPs, wallets), ACH deposit → book fee → book settle → ACH payout, with an NSF `return` edge case via `optional_groups`. No ledger. |
-| `examples/psp_minimal.json` | Smallest PSP slice: two direct actors, two IAs, one `book` transfer. No counterparties, no LEs. |
-| `examples/stablecoin_ramp.json` | **Fiat↔stablecoin on/off-ramp.** Dual connections (USD + USDC), ledger accounts for reserves/positions, inline LTs on POs, mutually exclusive payout alternatives (ACH/RTP/Wire via `exclusion_group` + `position: "replace"`). |
+| `examples/psp_minimal.json` | **Smallest Funds Flow:** two direct actors, two IAs, **one `funds_flows` entry** with a single `book` PO **step** — not raw top-level `payment_orders[]` alone. |
+| `examples/stablecoin_ramp.json` | **Fiat↔stablecoin on/off-ramp.** One `modern_treasury` connection, USD + USDC internal accounts, ledger accounts for reserves/positions, inline LTs on POs, mutually exclusive payout alternatives (ACH/RTP/Wire via `exclusion_group` + `position: "replace"`). |
 | `examples/staged_demo.json` | **Staged demo.** Marketplace with `staged: true` on all money-movement steps. Infrastructure creates normally; staged items get "Fire" buttons. |
 | `examples/tradeify.json` | **Ledger-heavy brokerage PSP.** Per-user `instance_resources` (LE + CP + IA + LAs + category memberships), USDG reserve/rewards ledger, NinjaTrader direct actor with EAs, three optional groups (ACH cashout, wire funding, staged return). |
 
@@ -144,14 +152,20 @@ Paste from repo (trim only if size-constrained):
 
 ## Generation rules
 
-1. **Self-bootstrap when demo needs it** -- Include `connections` and
-   `internal_accounts` the config actually uses. Do not assume undiscovered
-   org refs exist unless the user confirmed them via org discovery.
-   **Default:** `entity_id: "modern_treasury"` with a descriptive `ref` (e.g.
-   `platform_bank`) and nickname e.g. `"Modern Treasury PSP"`.
-   **Only if the user confirmed BYOB** (Bring Your Own Bank sandbox): use
-   `example1` (GWB) and/or `example2` (IBB) per `decision_rubrics.md` — not for
-   generic PSP demos.
+0. **Funds Flows only** -- Never deliver a "minimal" config as raw top-level
+   `payment_orders` / `incoming_payment_details` without **`funds_flows`**.
+   Every PO, IPD, EP, LT, return, and reversal must appear as a **step** (or
+   optional-group step) under `funds_flows`.
+
+1. **Self-bootstrap when demo needs it** -- Include **`connections`** and
+   `internal_accounts` the config actually uses. **Default:** **one** connection,
+   `entity_id: "modern_treasury"`, clear `ref` + nickname. Use that **same**
+   `connection_id` for **all** IAs on that PSP (USD, CAD, USDC, USDG, book /
+   ACH / stablecoin rails as needed). See **`examples/stablecoin_ramp.json`**.
+   Avoid extra `connections[]` unless **BYOB** or a real second bank
+   (`decision_rubrics.md`). The reconciler maps to existing org connections when
+   possible. **BYOB only:** `example1` / `example2` per `decision_rubrics.md` —
+   not for generic PSP demos.
 
 2. **`sandbox_behavior` on counterparties** -- If the config includes
    `counterparties` with inline `accounts[]` used for PO demos, set
@@ -159,10 +173,10 @@ Paste from repo (trim only if size-constrained):
    outcomes are deterministic. **Skip** for configs with no counterparties
    (e.g. `psp_minimal.json`).
 
-3. **Use `depends_on` only for business timing** -- Field refs (`$ref:` in
-   payload fields) create DAG edges. Add `depends_on` only when a resource must
-   wait for another it does **not** reference in any field (e.g. book PO after
-   IPD).
+3. **Ordering** -- Inside **`funds_flows`**, step-to-step ordering uses
+   `depends_on: ["other_step_id"]`. Field refs (`$ref:` / `@actor:` in step
+   payloads) still create edges after compile. Add `depends_on` between steps
+   when timing requires it (e.g. book step after IPD step) without a direct ref.
 
 4. **Amounts are in cents** -- `10000` = $100.00.
 
@@ -178,6 +192,11 @@ Paste from repo (trim only if size-constrained):
    `legal_entity_type`, `business_name` (optional `legal_structure`). For an
    **individual**: just `ref`, `legal_entity_type`, `first_name`, `last_name`
    (optional `email`). Add `metadata` for demo context.
+   **Never author `connection_id` on `legal_entities[]` for PSP (`modern_treasury`)**
+   — it is **not** part of the DSL the model should output; the executor injects
+   the `modern_treasury` connection UUID at run time (`decision_rubrics.md`). Treat
+   LE `connection_id` as **BYOB-only:** output it only when a BYOB / doc-specific
+   scenario explicitly requires it on legal-entity create.
 
 8. **Internal accounts need `legal_entity_id`** -- Every internal account
    **must** include a `legal_entity_id` ref. For per-user wallets, reference
@@ -199,11 +218,11 @@ Paste from repo (trim only if size-constrained):
 13. **IPD vs PO** -- IPD simulates **inbound** to an IA. `sandbox_behavior` on
     CP accounts affects **POs** to that bank account, not IPD behavior.
 
-14. **EP + IPD recon** -- If both exist, order so EP precedes IPD in the DAG
-    (e.g. `depends_on` on IPD pointing to EP).
+14. **EP + IPD recon** -- If both exist as **steps**, order so EP precedes IPD
+    (e.g. IPD step `depends_on` the EP **step_id**).
 
-15. **Same-wallet debits** -- Sequence POs that debit the same IA (e.g. fee
-    after settle) using `depends_on` when needed.
+15. **Same-wallet debits** -- Sequence PO **steps** that debit the same IA
+    (e.g. fee after settle) using `depends_on` between **step_id**s when needed.
 
 16. **Counterparty `accounts[]`** -- No `name` field on inline accounts. Use
     `party_name` or `metadata` (e.g. `account_label`) for labels. The parent
@@ -231,11 +250,13 @@ Paste from repo (trim only if size-constrained):
 
 ---
 
-## Funds Flows DSL (use by default — not just lifecycle demos)
+## Funds Flows DSL (mandatory authoring path)
 
-**Always use `funds_flows`** unless the config is a single isolated resource
-(one PO, one LT) with no related steps. Even simple two-step demos benefit
-from the DSL. Raw resource arrays are the exception, not the norm.
+**You only author lifecycle behavior here.** Do not hand-write top-level
+`payment_orders`, `incoming_payment_details`, `expected_payments`,
+`ledger_transactions`, `returns`, or `reversals`. Every money-moving demo —
+including the smallest "hello world" — needs a non-empty **`funds_flows`**
+array with at least one flow and steps (see `psp_minimal.json`).
 
 ### Funds Flow JSON structure
 
@@ -356,7 +377,7 @@ Every step has these **common fields**: `step_id` (required), `type`
 
 **Critical field differences between step types (common mistakes):**
 - **Date fields differ:** PO and LT use `effective_date`; IPD uses `as_of_date`; EP uses `date_lower_bound`/`date_upper_bound`. Do NOT use `effective_date` on an IPD step.
-- **Account fields differ:** PO uses `originating_account_id` + `receiving_account_id`; IPD uses `originating_account_id` + `internal_account_id`. Do NOT use `receiving_account_id` on an IPD step.
+- **Account fields differ:** PO uses `originating_account_id` + `receiving_account_id`. **Raw** top-level `incoming_payment_details[]` items use **`internal_account_id` only** (plus optional `originating_account_number` / `originating_routing_number` for some types) — **never** `originating_account_id` on those rows. **Funds Flow** IPD **steps** may use `originating_account_id` + `internal_account_id` (external sender + destination IA); the compiler strips `originating_account_id` when emitting. Do NOT use `receiving_account_id` on an IPD step.
 - **Direction:** IPD direction is always `"credit"` (inbound). PO direction can be `"credit"` or `"debit"`.
 - **ACH debit PO (collection):** `direction: "debit"`, `originating_account_id` = IA receiving funds, `receiving_account_id` = counterparty EA being debited.
 

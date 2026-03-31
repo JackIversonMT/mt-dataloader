@@ -2,7 +2,13 @@
 
 This document tells you which MT resource type to use for a given business
 intent. Every resource listed here maps to a top-level section in the
-DataLoaderConfig JSON.
+DataLoaderConfig JSON **after compilation**.
+
+**Authoring rule:** You do **not** hand-write lifecycle resources in those
+top-level arrays (`payment_orders`, `incoming_payment_details`,
+`expected_payments`, `ledger_transactions`, `returns`, `reversals`). Express
+them only as **`funds_flows[].steps`** (and `optional_groups`). The compiler
+expands steps into the sections this document names.
 
 ---
 
@@ -11,13 +17,14 @@ DataLoaderConfig JSON.
 For **payment service provider** and **marketplace** demos where users hold
 funds in **internal accounts as wallets**:
 
-- **Use:** `legal_entity`, `counterparty` (with inline accounts +
-  `sandbox_behavior`), `internal_account` (per user + platform revenue),
-  `payment_order` (`book` for wallet-to-wallet / fees, `ach` for bank payout
-  or ACH collection).
-- **Inbound buyer funds (sandbox):** `incoming_payment_detail` simulates an
-  external **push** into a wallet — not something you "do" in production the
-  same way; it is sandbox simulation.
+- **Use (as static resources + flows):** `legal_entity`, `counterparty` (with
+  inline accounts + `sandbox_behavior`), `internal_account` (per user + platform
+  revenue). **Express** `payment_order` and `incoming_payment_detail` as
+  **`funds_flows` steps** (`book` for wallet-to-wallet / fees, `ach` for bank
+  payout or ACH collection), not as hand-written top-level arrays.
+- **Inbound buyer funds (sandbox):** an **IPD step** simulates an external
+  **push** into a wallet — not something you "do" in production the same way;
+  it is sandbox simulation.
 - **Do not add by default:** `ledger`, `ledger_account`, `ledger_transaction`,
   `virtual_account`, `expected_payment` — only if the demo is explicitly about
   accounting or reconciliation attribution.
@@ -51,6 +58,24 @@ explicitly a **Bring Your Own Bank (BYOB)** sandbox exercise.
 Use a clear `ref` (e.g. `platform_bank`, `mt_sandbox`) and a human nickname
 (e.g. `"Modern Treasury PSP"`). This should be the **default** unless the user
 answered **yes** to the BYOB question (see below).
+
+### One `modern_treasury` connection, many internal accounts (default)
+
+**Default PSP demos** use **one** `connections[]` row with **`entity_id:
+"modern_treasury"`** and a clear `ref` + nickname. Hang **all** internal accounts
+that belong to that PSP on the **same** `connection_id` (`$ref:connection.<ref>`)
+— whether the IA is **USD**, **CAD**, **USDC**, **USDG**, or used for **book**,
+**ACH**, **stablecoin** payment orders, etc. Currency and payment type are
+properties of the **internal account** and the **payment order**, not separate
+connection rows per currency.
+
+Use **`examples/stablecoin_ramp.json`** as a funds-flow template: one shared PSP
+connection, USD + USDC internal accounts, ledger structure, and optional-group
+payout alternatives.
+
+Add a **second** connection only when the story truly needs another banking
+partner (e.g. **BYOB** `example1` / `example2`, or a doc-driven multi-bank
+setup)—not “one connection per currency.”
 
 ### BYOB only: `example1` and `example2`
 
@@ -104,11 +129,43 @@ only what you need; one or two focused questions often suffice.
 Every config that creates internal accounts needs at least one connection.
 Connections cannot be deleted.
 
+### Live orgs: reuse connections, avoid duplicates
+
+When the run uses **org discovery + reconciliation**, the engine **maps** your
+config `connections[].entity_id` to each live connection’s `vendor_id`. If
+nothing matches (common when the org was created outside this config), the
+reconciler **reuses an existing org connection** when it can (e.g. the only
+connection, or the best currency overlap with your internal accounts) so the run
+does **not** try to mint another sandbox connection.
+
+**Authoring guidance:** Use **one** `connections[]` entry by default
+(`modern_treasury`). Do **not** add connections “to be safe.” Extra connections
+are for **BYOB** or explicit multi-bank demos, not for splitting USD vs USDC on
+the same PSP.
+
 ---
 
 ## Legal Entities
 
 A legal entity is a person or business. Required for KYC/KYB onboarding.
+
+**`ref` keys:** Prefer company- or role-shaped names (`acme_payments`,
+`psp_operator`, `platform_entity`). Avoid bare `platform` — it collides with
+the word “platform” in prose and is easy to mis-resolve in large configs
+(`naming_conventions.md`).
+
+### Legal entity `connection_id` — **never in PSP DSL**; **BYOB only** when required
+
+For **`modern_treasury` / default PSP** configs, **do not** author
+`connection_id` on `legal_entities[]` at all — it is **not** part of the Funds
+Flows / static JSON the model should emit (same category as “don’t invent LE
+compliance blobs”). The **executor** injects the live `modern_treasury`
+connection UUID before `POST /legal_entities`.
+
+**BYOB** (`example1` / `example2`): the executor does **not** inject LE
+`connection_id`. Include it in JSON **only** when your BYOB or MT documentation
+scenario explicitly requires that field on legal-entity create; otherwise omit and
+use MT defaults.
 
 ### Compliance fields are fully managed by the dataloader
 
@@ -116,10 +173,10 @@ The dataloader **always overwrites** `identifications`, `addresses`, and
 `documents` with sandbox-safe mock data. Any values you provide for these
 fields are **silently replaced** — so **never include them** in the JSON.
 
-| `legal_entity_type` | Fields you provide | Auto-managed (do NOT include) |
+| `legal_entity_type` | Fields you provide | Auto-managed / omit in DSL (do NOT include) |
 |---------------------|--------------------|-------------------------------|
-| `business` | `ref`, `legal_entity_type`, `business_name`, optional `legal_structure`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_formed`, `country_of_incorporation` |
-| `individual` | `ref`, `legal_entity_type`, `first_name`, `last_name`, optional `email`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_of_birth`, `citizenship_country` |
+| `business` | `ref`, `legal_entity_type`, `business_name`, optional `legal_structure`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_formed`, `country_of_incorporation`; **PSP:** never `connection_id` (executor injects) |
+| `individual` | `ref`, `legal_entity_type`, `first_name`, `last_name`, optional `email`, optional `metadata` | `identifications`, `addresses`, `documents`, `date_of_birth`, `citizenship_country`; **PSP:** never `connection_id` (executor injects) |
 
 ```json
 {
@@ -328,7 +385,7 @@ to wallet). Treat it as **inbound deposit simulation**, not a generic
 
 | Intent | Config section | Key fields |
 |--------|---------------|------------|
-| Simulate inbound credit to an IA | `incoming_payment_details` | `type`, `direction`, `amount`, `internal_account_id` |
+| Simulate inbound credit to an IA | `incoming_payment_details` | `type`, `direction`, `amount`, `internal_account_id` (optional `originating_account_number` / `originating_routing_number` for some rails). **No** `originating_account_id` on raw rows — use **funds_flows** IPD steps if you need that ref in the DSL. |
 
 After creation, the loader polls until `completed`. Child refs may include
 `transaction` (and ledger linkage if your org uses it).

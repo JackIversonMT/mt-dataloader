@@ -238,6 +238,11 @@ def _pipeline_result_to_session(
     )
 
 
+def _pipeline_error_response(message: str):
+    title, _, detail = message.partition("\n")
+    return error_response(title, detail)
+
+
 def _render_preview_or_redirect(
     request: Request,
     session: SessionState,
@@ -394,8 +399,7 @@ async def validate(
 
     result = await _validate_pipeline(raw_json, api_key, org_id)
     if isinstance(result, str):
-        title, _, detail = result.partition("\n")
-        return error_response(title, detail)
+        return _pipeline_error_response(result)
 
     ol = org_name.strip() or None
     session = _pipeline_result_to_session(result, api_key, org_id, org_label=ol)
@@ -436,8 +440,7 @@ async def revalidate(
         manual_mappings=manual_maps,
     )
     if isinstance(result, str):
-        title, _, detail = result.partition("\n")
-        return error_response(title, detail)
+        return _pipeline_error_response(result)
 
     session = _pipeline_result_to_session(
         result,

@@ -64,6 +64,7 @@ __all__ = [
     "RunManifest",
     "list_manifest_ids",
     "_now_iso",
+    "inject_legal_entity_psp_connection_id",
 ]
 
 # ---------------------------------------------------------------------------
@@ -235,9 +236,16 @@ def build_dag(
     Child refs (e.g. ``counterparty.vendor_bob.account[0]``) get an
     implicit edge to their parent (``counterparty.vendor_bob``), ensuring
     the parent is created before any resource that depends on the child.
+
+    **Legal entities** always depend on **every** configured ``connection`` so
+    execution never creates LEs in the same batch as (or before) connections.
+    MT ties LEs to connections (``connection_id`` / Connection Legal Entity);
+    parallel LE + connection creates produced confusing failures and log order.
     """
     ts: TopologicalSorter[str] = TopologicalSorter()
     resource_map: dict[str, _BaseResourceConfig] = {}
+
+    connection_refs = [typed_ref_for(c) for c in config.connections]
 
     for resource in all_resources(config):
         ref = typed_ref_for(resource)
@@ -245,6 +253,8 @@ def build_dag(
         for explicit_dep in resource.depends_on:
             if explicit_dep.startswith("$ref:"):
                 deps.add(explicit_dep[5:])
+        if resource.resource_type == "legal_entity" and connection_refs:
+            deps.update(connection_refs)
         expanded = set(deps)
         for dep in deps:
             parts = dep.split(".")
@@ -255,6 +265,80 @@ def build_dag(
         resource_map[ref] = resource
 
     return ts, resource_map
+
+
+_FIAT_IA_CURRENCIES: frozenset[str] = frozenset({"USD", "CAD"})
+
+
+def inject_legal_entity_psp_connection_id(
+    config: DataLoaderConfig,
+    registry: RefRegistry,
+    resolved: dict[str, Any],
+    *,
+    typed_ref: str,
+) -> None:
+    """Fill ``connection_id`` on legal-entity **create** when absent (PSP only).
+
+    If JSON omits ``connection_id`` and the config has ``modern_treasury``
+    connections, prefer the UUID for **this** legal entity's **fiat (USD/CAD)
+    internal account** connection — MT Connection Legal Entity flows align with
+    the bank/fiat rail, not the first row in ``connections[]`` (which breaks when
+    there are two ``modern_treasury`` refs or list order differs).
+
+    Falls back to the first registered ``modern_treasury`` connection if the LE
+    has no matching IAs yet. BYOB-only configs are unchanged.
+
+    Mutates *resolved* in place, analogous to sandbox mock data on LE payloads.
+    """
+    if resolved.get("connection_id"):
+        return
+
+    le_ref_target = f"$ref:{typed_ref}"
+
+    def _conn_row_entity_id(conn_tref: str) -> str | None:
+        for c in config.connections:
+            if typed_ref_for(c) == conn_tref:
+                return c.entity_id
+        return None
+
+    ias_for_le = [
+        ia
+        for ia in config.internal_accounts
+        if ia.legal_entity_id == le_ref_target
+    ]
+    # Fiat IAs first (CLE / bank rail), then any other IA on this LE.
+    ias_ordered = sorted(
+        ias_for_le,
+        key=lambda ia: (0 if ia.currency in _FIAT_IA_CURRENCIES else 1),
+    )
+    for ia in ias_ordered:
+        cid_str = ia.connection_id
+        if not isinstance(cid_str, str) or not cid_str.startswith("$ref:connection."):
+            continue
+        conn_tref = cid_str[5:]  # strip "$ref:"
+        if _conn_row_entity_id(conn_tref) != "modern_treasury":
+            continue
+        cid = registry.get(conn_tref)
+        if cid:
+            resolved["connection_id"] = cid
+            logger.debug(
+                "Injected connection_id for {} from {} (via IA {}) → {}…",
+                typed_ref, conn_tref, ia.ref, cid[:12],
+            )
+            return
+
+    for conn in config.connections:
+        if conn.entity_id != "modern_treasury":
+            continue
+        tref = typed_ref_for(conn)
+        cid = registry.get(tref)
+        if cid:
+            resolved["connection_id"] = cid
+            logger.debug(
+                "Injected connection_id for {} from {} (fallback) → {}…",
+                typed_ref, tref, cid[:12],
+            )
+            return
 
 
 def dry_run(
@@ -641,6 +725,9 @@ async def execute(
     skip_refs: set[str] | None = None,
     update_refs: dict[str, str] | None = None,
     update_dispatch: dict[str, HandlerFn] | None = None,
+    *,
+    mt_org_id: str | None = None,
+    mt_org_label: str | None = None,
 ) -> RunManifest:
     """Execute the DAG with intra-batch concurrency.
 
@@ -695,6 +782,10 @@ async def execute(
                 try:
                     async with semaphore:
                         resolved = resolve_refs(resource, registry)
+                        if resource.resource_type == "legal_entity":
+                            inject_legal_entity_psp_connection_id(
+                                config, registry, resolved, typed_ref=typed_ref,
+                            )
 
                         if getattr(resource, "staged", False):
                             staged_payloads[typed_ref] = resolved
@@ -753,10 +844,11 @@ async def execute(
                         tg.create_task(create_one(ref, batch_index))
             except* Exception as eg:
                 for exc in eg.exceptions:
+                    leaf = _deepest_exception_with_failed_ref(exc)
                     failed_ref = getattr(
-                        exc, "_failed_typed_ref", None
-                    ) or _guess_failed_ref(exc, to_create, resource_map)
-                    error_detail = _format_exception_detail(exc, failed_ref)
+                        leaf, "_failed_typed_ref", None
+                    ) or _guess_failed_ref(leaf, to_create, resource_map)
+                    error_detail = _format_exception_detail(leaf, failed_ref)
                     manifest.record_failure(failed_ref, error_detail)
                     await emit_sse("error", failed_ref, {"error": error_detail})
                 manifest.finalize("failed")
@@ -791,6 +883,23 @@ def _write_staged_payloads(
     )
 
 
+def _deepest_exception_with_failed_ref(exc: BaseException) -> BaseException:
+    """Unwrap ExceptionGroup so we attribute errors to the real typed_ref.
+
+    asyncio.TaskGroup may nest failures; create_one sets _failed_typed_ref on
+    the leaf API error, but the outer group would otherwise lose it.
+    """
+    if getattr(exc, "_failed_typed_ref", None):
+        return exc
+    nested = getattr(exc, "exceptions", None)
+    if nested:
+        for sub in nested:
+            inner = _deepest_exception_with_failed_ref(sub)
+            if getattr(inner, "_failed_typed_ref", None):
+                return inner
+    return exc
+
+
 def _guess_failed_ref(
     exc: BaseException,
     batch_refs: list[str],
@@ -815,7 +924,16 @@ def _format_exception_detail(exc: BaseException, failed_ref: str) -> str:
         body = exc.body
         if isinstance(body, dict):
             errors = body.get("errors", body)
-            msg = errors.get("message", str(errors)) if isinstance(errors, dict) else str(errors)
+            if isinstance(errors, dict):
+                msg = errors.get("message", str(errors))
+                param = errors.get("parameter")
+                code = errors.get("code")
+                if param:
+                    msg = f"{msg} (parameter: {param})"
+                if code and code not in str(msg):
+                    msg = f"{code}: {msg}"
+            else:
+                msg = str(errors)
             return f"[{failed_ref}] HTTP {exc.status_code}: {msg}"
         return f"[{failed_ref}] HTTP {exc.status_code}: {body}"
     return f"[{failed_ref}] {type(exc).__name__}: {exc}"

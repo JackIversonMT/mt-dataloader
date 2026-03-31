@@ -23,7 +23,7 @@ than long, overly-descriptive ones.
 | Resource type | Pattern | Good examples | Bad examples |
 |--------------|---------|---------------|-------------|
 | `connection` | `<bank>` | `chase`, `silicon_valley_bank` | `conn1`, `my_connection` |
-| `legal_entity` | `<name>` | `acme`, `alice_johnson` | `le_1`, `entity` |
+| `legal_entity` | `<name>` | `acme`, `alice_johnson`, `psp_operator`, `acme_payments` | `le_1`, `entity`, **`platform`** (too vague — use `platform_entity` / company-shaped ref) |
 | `counterparty` | `<name>` | `cloudhost`, `owen`, `bluewater` | `cp1`, `counterparty_a` |
 | `internal_account` | `<actor_name>` | `owen`, `bluewater`, `platform_ops` | `ia_1`, `buyer_owen_wallet` |
 | `external_account` | `<owner>` | `alice`, `vendor_chase` | `ea1` |

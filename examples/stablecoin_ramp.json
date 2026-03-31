@@ -1,14 +1,9 @@
 {
   "connections": [
     {
-      "ref": "fiat_bank",
+      "ref": "platform_psp",
       "entity_id": "modern_treasury",
-      "nickname": "Fiat Banking Partner (USD)"
-    },
-    {
-      "ref": "stablecoin_rail",
-      "entity_id": "modern_treasury",
-      "nickname": "Stablecoin Rail (USDC)"
+      "nickname": "Modern Treasury PSP (USD + USDC)"
     }
   ],
   "ledgers": [
@@ -67,7 +62,7 @@
   "internal_accounts": [
     {
       "ref": "c2_payment_usd",
-      "connection_id": "$ref:connection.fiat_bank",
+      "connection_id": "$ref:connection.platform_psp",
       "legal_entity_id": "$ref:legal_entity.platform_entity",
       "name": "C2 Payment Account (USD)",
       "party_name": "Archer Payments Inc.",
@@ -76,7 +71,7 @@
     },
     {
       "ref": "payment_usdc",
-      "connection_id": "$ref:connection.stablecoin_rail",
+      "connection_id": "$ref:connection.platform_psp",
       "legal_entity_id": "$ref:legal_entity.platform_entity",
       "name": "Payment Account (USDC)",
       "party_name": "Archer Payments Inc.",
@@ -85,7 +80,7 @@
     },
     {
       "ref": "employee_payment_usd",
-      "connection_id": "$ref:connection.fiat_bank",
+      "connection_id": "$ref:connection.platform_psp",
       "legal_entity_id": "$ref:legal_entity.platform_entity",
       "name": "Employee Payment Account (USD)",
       "party_name": "Archer Payments Inc.",

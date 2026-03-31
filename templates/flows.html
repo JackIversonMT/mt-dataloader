@@ -5,15 +5,11 @@
 
 {% block header_actions %}
 <a href="/preview?session_token={{ session_token }}" class="btn btn-primary btn-sm">
-    Next <span style="margin-left: 4px;">→</span>
+    Execution plan<span style="margin-left: 4px;">→</span>
 </a>
 {% endblock %}
 
-{% block page_subtitle %}
-<div class="page-header-subtitle">
-    Compile-time preview{% if diagnostics %} — {{ diagnostics.total_steps }} steps, {{ diagnostics.type_counts|length }} resource types, {{ diagnostics.trace_value_count }} trace values{% endif %}
-</div>
-{% endblock %}
+{% block page_subtitle %}{% endblock %}
 
 {% block content %}
 

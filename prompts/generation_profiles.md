@@ -13,14 +13,20 @@ come from `/api/schema`, `naming_conventions.md`, and `system_prompt.md` rules.
 ## Procedure (do this in order)
 
 1. **Classify the ask** using the triggers below (one primary scope).
-2. **List sections** you will include (use the scope ladder).
-3. **Pick a structural template:** mirror `examples/psp_minimal.json` or
-   `examples/marketplace_demo.json`—do not invent a third architecture unless
-   the user clearly needs something neither file covers.
+2. **List static/bootstrap sections** you need (`connections`, `internal_accounts`,
+   `legal_entities`, `counterparties`, ledgers, etc.) plus **`funds_flows`**.
+   Default **one** `modern_treasury` connection even when IAs use both USD and
+   USDC (`stablecoin_ramp.json`).
+3. **Pick a structural template** from **Funds Flow examples only** — mirror
+   shape from `examples/psp_minimal.json` (smallest flow), `examples/marketplace_demo.json`
+   (PSP marketplace), or `examples/funds_flow_demo.json` (ledger lifecycle).
+   Do not invent a third architecture unless neither file fits.
 4. **Add extras** only if the user explicitly asked (second step of the ladder).
 
-If the user's request is vague, **ask one short question**: *"Smallest possible
-demo (one internal transfer), or full marketplace-style onboarding + flows?"*
+If the user's request is vague, **ask one short question**: *"Smallest **funds
+flow** (e.g. one internal book transfer in `funds_flows`), or full marketplace
+onboarding + flows?"* Never answer "minimal" by emitting **raw** top-level
+`payment_orders[]` without `funds_flows`.
 
 ---
 
@@ -31,9 +37,11 @@ demo (one internal transfer), or full marketplace-style onboarding + flows?"*
 **Use when the user wants:** the smallest thing that runs; "hello world"; one
 movement of money inside the platform; no parties, no KYB story.
 
-**Structural template:** `examples/psp_minimal.json`  
-**Typical sections:** `connections`, `internal_accounts`, `payment_orders` (often
-one `book` PO).
+**Structural template:** `examples/psp_minimal.json` — already **Funds Flows
+DSL**: `connections`, `internal_accounts`, and **one `funds_flows` entry** whose
+`steps` contain a single `payment_order` step (`book` transfer via `@actor:`
+slots). **Do not** put that PO only in top-level `payment_orders[]` with no
+`funds_flows`.
 
 **Usually omit:** legal entities, counterparties, IPDs, fees, ACH—unless the user
 asked for any of those.
@@ -48,12 +56,12 @@ onboarded parties, wallets, settlement, fees, maybe sandbox ACH / returns.
 **Structural template:** `examples/marketplace_demo.json`  
 **Typical sections:** connections (`ref:` e.g. `platform_bank`, **`entity_id:
 "modern_treasury"`**, PSP-style nickname such as `"Modern Treasury PSP"`),
-legal entities (minimal — name + type; dataloader auto-fills compliance),
-counterparties (`sandbox_behavior` as needed), internal accounts (`*_wallet`
-refs, **Payment Account** display `name` on party IAs; platform revenue IA),
-payment orders (`book` + `ach`), optional IPD for **simulated inbound** when
-the script needs it. **Do not** use `example1` / `example2` here unless the user
-asked for **BYOB** (see `decision_rubrics.md`).
+`instance_resources` (LEs, CPs, IAs), and **`funds_flows`** with steps for
+deposit / settle / fee / payout (and optional IPD steps for simulated inbound).
+Express **all** POs and IPDs as **steps**, not as hand-written top-level arrays.
+**Do not** use `example1` / `example2` here unless the user asked for **BYOB**
+(see `decision_rubrics.md`). **PSP legal entities:** never emit `connection_id`
+on `legal_entities[]` — BYOB-only when required (`decision_rubrics.md`).
 
 **Do not add by default:** `expected_payments`, `virtual_accounts`, ledger
 sections—see decision rubrics; only if the user explicitly wants recon / VA /
@@ -83,7 +91,7 @@ line with `decision_rubrics.md`.
 | "Marketplace", "buyer/seller", "wallets", "settle", "fee" | B | `marketplace_demo.json` |
 | "Lifecycle", "deposit-to-settle", "flow pattern" | B | `funds_flow_demo.json` |
 | "Live demo", "staged", "fire one-by-one", "click-through" | B + staged | `staged_demo.json` |
-| "Stablecoin", "on-ramp", "off-ramp", "USDC", "USDG" | C | `stablecoin_ramp.json` |
+| "Stablecoin", "on-ramp", "off-ramp", "USDC", "USDG" | C | `stablecoin_ramp.json` (one `modern_treasury` connection; USD + USDC IAs on same `connection_id`) |
 | "Brokerage", "rewards", "chart of accounts" | C | `tradeify.json` |
 | "Reconciliation", "expected payment", "match inbound" | C | B + EP/IPD per rubrics |
 | "Ledger", "double-entry", "GL" | C | B + ledger sections per rubrics |
@@ -110,26 +118,31 @@ Start at **B** unless the user chose **A** or **C**.
 
 ---
 
-## Funds Flows DSL is the default
+## Funds Flows DSL is the only authoring model
 
-**Always use `funds_flows`.** Raw resource arrays are the rare exception.
+**Always author money movement with `funds_flows`.** There is **no** separate
+"raw lifecycle DSL" for you to use: do **not** hand-write top-level
+`payment_orders`, `incoming_payment_details`, `expected_payments`,
+`ledger_transactions`, `returns`, or `reversals`. Omit those keys or leave them
+absent; the compiler fills them from **`funds_flows[].steps`** and
+**`optional_groups`**.
 
-| Use `funds_flows` (default) | Use raw arrays (exception) |
-|-----------------------------|----------------------------|
-| Any demo with 1+ payment/ledger steps | Single isolated resource with no related steps |
-| Scaling instances (1 user to 100+) | Standalone resource that doesn't belong to any flow |
-| Lifecycle variants (returns, reversals, alt payouts) | |
-| Per-user infra via `instance_resources` | |
+| Always via `funds_flows` | Never hand-author at top level |
+|--------------------------|--------------------------------|
+| Every PO, IPD, EP, LT, return, reversal step | Parallel copies in `payment_orders[]` / `incoming_payment_details[]` / … |
+| Scaling (`instance_resources`, recipes) | "Minimal" configs with only raw arrays |
+| `optional_groups` (NSF, alt payout, returns) | |
 
-The compiler generates all individual resources (POs, IPDs, LTs, returns)
-from step definitions — do not manually build what the compiler produces.
+The compiler generates concrete resources from step definitions — your job is
+**steps + actors + static/bootstrap resources**, not duplicate lifecycle rows.
 
 ---
 
 ## After you pick scope
 
-1. **Choose structure:** `funds_flows` by default; raw arrays only for
-   truly isolated single resources.
+1. **Choose structure:** non-empty **`funds_flows`** (at least one flow with at
+   least one step) for any config that moves money; static sections only for
+   shared infra (connections, accounts, counterparties, ledgers, etc.).
 2. Generate **complete** `DataLoaderConfig` JSON (no placeholders).
 3. Validate mentally against **self-bootstrap** (connection + resources in-file).
 4. Run **`POST /api/validate-json`** (or user does); fix errors by path.

@@ -4,6 +4,12 @@ The dataloader builds a directed acyclic graph (DAG) from the config and
 executes resources in topological order. Within each batch, resources with
 no dependencies between them run concurrently.
 
+**LLM authoring:** Define ordering first in **`funds_flows`** using
+`depends_on: ["step_id"]` between steps. The JSON snippets below that show
+top-level resources with `$ref:incoming_payment_detail...` illustrate the
+**compiled** shape after expansion — your primary job is step-level `depends_on`,
+not hand-written parallel PO rows.
+
 You almost never need to think about ordering — the engine handles it. This
 document explains the rare cases where you do.
 

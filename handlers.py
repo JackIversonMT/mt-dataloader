@@ -450,6 +450,12 @@ async def create_internal_account(
     typed_ref: str = "",
 ) -> HandlerResult:
     logger.bind(ref=typed_ref).info("Creating internal account")
+    conn_id = resolved.get("connection_id")
+    if not conn_id or not str(conn_id).strip():
+        raise ValueError(
+            f"{typed_ref}: internal account is missing connection_id after ref "
+            f"resolution — check connection reconciliation and $ref:connection.*"
+        )
     result = await client.internal_accounts.create(
         **resolved,
         idempotency_key=idempotency_key,
@@ -1150,7 +1156,7 @@ async def list_resources(
 
 _STRIP_ON_UPDATE: dict[str, set[str]] = {
     "internal_account": {"connection_id", "currency"},
-    "legal_entity": {"legal_entity_type"},
+    "legal_entity": {"legal_entity_type", "connection_id"},
     "counterparty": set(),
     "ledger": set(),
     "ledger_account": {"currency", "ledger_id", "normal_balance"},

@@ -2,6 +2,16 @@
 
 Every step shares: `step_id`, `type`, `description`, `depends_on`, `timing`, `metadata`.
 
+## Raw `incoming_payment_details[]` vs Funds Flow IPD steps
+
+Top-level **`incoming_payment_details`** objects (hand-written or pasted JSON)
+**must not** include `originating_account_id` — the schema has
+`internal_account_id` plus optional `originating_account_number` /
+`originating_routing_number` where needed. **`funds_flows` steps** with
+`type: incoming_payment_detail` **may** include `originating_account_id`
+(external sender ref); the compiler drops it when emitting resources (the MT
+simulation API does not take that field on the saved IPD object the same way).
+
 ## Type-specific fields
 
 | `type` | Type-specific fields |
@@ -21,6 +31,8 @@ Every step shares: `step_id`, `type`, `description`, `depends_on`, `timing`, `me
 
 - IPD uses `as_of_date`, NOT `effective_date`. PO and LT use `effective_date`.
 - IPD uses `internal_account_id`, NOT `receiving_account_id`. PO uses `receiving_account_id`.
+- Do **not** put `originating_account_id` on **raw** `incoming_payment_details[]`
+  rows (schema forbids it). It is only for **DSL** IPD steps under `funds_flows`.
 - IPD `direction` is always `"credit"`. For ACH collections use a PO with `direction: "debit"`.
 - ACH debit PO: `originating_account_id` = IA receiving funds, `receiving_account_id` = EA being debited.
 

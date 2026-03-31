@@ -91,6 +91,17 @@ def index_resource(run_id: str, created_id: str, typed_ref: str) -> None:
     _correlation_index[created_id] = (run_id, typed_ref)
 
 
+def register_run_org(run_id: str, org_id: str) -> None:
+    """Record which MT org executed a run (for webhook row org labels / filtering).
+
+    Called from ``engine.execute()`` when a manifest is created so inbound
+    webhooks correlated to this run_id can show ``mt_org_id`` before the
+    manifest is re-read from disk.
+    """
+    if run_id and org_id:
+        _run_org_map[run_id] = org_id
+
+
 def ensure_run_indexed(run_id: str, manifest: Any) -> None:
     """Populate the correlation index from a historical manifest.
 

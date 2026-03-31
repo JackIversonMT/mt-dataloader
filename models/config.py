@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from models.flow_dsl import FundsFlowConfig
@@ -89,6 +91,38 @@ class DataLoaderConfig(BaseModel):
             "config is treated as a raw resource config (passthrough)."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_ipd_ep_originating_account_on_raw_resources(cls, data: Any) -> Any:
+        """LLMs often copy PO-style `originating_account_id` onto raw IPD/EP rows.
+
+        The Funds Flow DSL allows `originating_account_id` on IPD/EP *steps*; the
+        compiler strips it when emitting. Raw ``incoming_payment_details`` and
+        ``expected_payments`` entries use the narrower resource schema (no
+        ``originating_account_id``), so we discard the key here to match emit
+        behavior and avoid spurious validation failures.
+        """
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        for key in ("incoming_payment_details", "expected_payments"):
+            items = out.get(key)
+            if not isinstance(items, list):
+                continue
+            coerced: list[Any] = []
+            changed = False
+            for item in items:
+                if isinstance(item, dict) and "originating_account_id" in item:
+                    coerced.append(
+                        {k: v for k, v in item.items() if k != "originating_account_id"}
+                    )
+                    changed = True
+                else:
+                    coerced.append(item)
+            if changed:
+                out[key] = coerced
+        return out
 
     @model_validator(mode="after")
     def _refs_are_unique_within_type(self) -> DataLoaderConfig:

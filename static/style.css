@@ -1956,3 +1956,9 @@ svg.lock-icon { display: none; }
     background: color-mix(in srgb, var(--status-staged) 15%, transparent);
     color: var(--status-staged);
 }
+
+/* Scenario builder — Apply / errors must be visible below the footer */
+.scenario-builder-result {
+    margin-top: 12px;
+    min-height: 1.25rem;
+}
