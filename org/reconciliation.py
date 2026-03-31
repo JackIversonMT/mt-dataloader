@@ -126,7 +126,66 @@ def reconcile_config(
             config_conn_to_discovered[tref] = match.id
             matched_discovered_ids.add(match.id)
         else:
-            result.unmatched_config.append(tref)
+            # No vendor_id match — prefer **reusing** an existing org connection
+            # instead of creating a new sandbox connection (duplicate / incomplete
+            # connections often trigger MT 422s like "Connection endpoint must be present").
+            expected_curr = config_conn_expected_currencies.get(tref, set())
+            all_disc = list(discovery.connections)
+            match = None
+            match_reason = ""
+            if len(all_disc) == 1:
+                match = all_disc[0]
+                match_reason = (
+                    f"fallback: single live connection "
+                    f"(config entity_id {conn.entity_id!r} not found on any connection)"
+                )
+            elif all_disc:
+                if expected_curr:
+                    best_score = -1
+                    for c in all_disc:
+                        overlap = len(set(c.currencies) & expected_curr)
+                        if overlap > best_score:
+                            best_score = overlap
+                            match = c
+                    if best_score <= 0:
+                        match = all_disc[0]
+                        match_reason = (
+                            f"fallback: first live connection "
+                            f"(entity_id {conn.entity_id!r} unmatched; "
+                            f"no IA currency overlap on connections)"
+                        )
+                    else:
+                        match_reason = (
+                            f"fallback: best currency overlap with internal accounts "
+                            f"(entity_id {conn.entity_id!r} unmatched)"
+                        )
+                else:
+                    match = all_disc[0]
+                    match_reason = (
+                        f"fallback: first live connection "
+                        f"(entity_id {conn.entity_id!r} unmatched; no IA currency hints)"
+                    )
+            if match is not None:
+                logger.warning(
+                    "Connection {} reconciled to existing org connection {} — {}",
+                    tref,
+                    match.id[:12],
+                    match_reason,
+                )
+                result.matches.append(
+                    ReconciledResource(
+                        config_ref=tref,
+                        config_resource=conn,
+                        discovered_id=match.id,
+                        discovered_name=match.vendor_name,
+                        match_reason=match_reason,
+                        duplicates=all_conn_options,
+                    )
+                )
+                config_conn_to_discovered[tref] = match.id
+                matched_discovered_ids.add(match.id)
+            else:
+                result.unmatched_config.append(tref)
 
     # -------------------------------------------------------------------
     # 2. Internal accounts: match name + currency + connection

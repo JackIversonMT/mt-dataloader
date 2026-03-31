@@ -170,28 +170,42 @@
         </div>
 
         <div class="accordion-footer">
-            <button class="btn btn-secondary btn-sm" data-action="preview">Preview</button>
-            <button class="btn btn-primary btn-sm" data-action="apply">Apply to Config</button>
+            <button type="button" class="btn btn-primary btn-sm" data-action="apply">Apply to Config</button>
         </div>
 
-        <div data-field="result"></div>
+        <div class="scenario-builder-result" data-field="result" role="status" aria-live="polite"></div>
     </div>
 </details>
 
-{# Config blob for the JS module — no inline logic, just data #}
+{# Config blob — init deferred until DOMContentLoaded so scenario-builder.js (loaded at end of base.html) exists #}
 {% set _staging_opts = [{"value": "happy_path", "label": "Happy path"}, {"value": "all", "label": "All instances"}] %}
 {% for og in fs.optional_groups %}
   {% set _ = _staging_opts.append({"value": og.label, "label": og.label}) %}
 {% endfor %}
 <script>
-initScenarioBuilder(
-  document.getElementById('scenario-builder-{{ flow_idx }}'),
-  {{ {
+(function () {
+  var elId = 'scenario-builder-{{ flow_idx }}';
+  var cfg = {{ {
     "idx": flow_idx,
     "flowRef": fs.flow_ref,
     "sessionToken": session_token,
     "stagingOptions": _staging_opts,
     "savedRecipe": generation_recipes.get(fs.flow_ref) if generation_recipes else None
-  } | tojson }}
-);
+  } | tojson }};
+  function bootScenarioBuilder() {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    if (typeof window.initScenarioBuilder !== 'function') {
+      var dead = el.querySelector('[data-field="result"]') || el;
+      dead.innerHTML = '<div class="alert alert--critical"><p>Scenario UI failed to load (initScenarioBuilder missing). Hard-refresh the page.</p></div>';
+      return;
+    }
+    window.initScenarioBuilder(el, cfg);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootScenarioBuilder);
+  } else {
+    bootScenarioBuilder();
+  }
+})();
 </script>

@@ -307,119 +307,97 @@
       return recipe;
     }
 
-    // ----- Mermaid rendering helper -----
+    // ----- Apply to config -----
 
-    function renderPreviewMermaid(diagrams, target) {
-      if (!diagrams || diagrams.length === 0 || typeof mermaid === 'undefined') return;
-      diagrams.forEach(function (src, i) {
-        var wrapper = document.createElement('details');
-        wrapper.className = 'accordion accordion--muted';
-        wrapper.setAttribute('data-mermaid', '');
-        wrapper.innerHTML =
-          '<summary class="accordion-toggle">' +
-            '<span class="accordion-toggle-title">Preview Diagram ' + (i + 1) + '</span>' +
-          '</summary>' +
-          '<div class="accordion-body">' +
-            '<div class="mermaid-render" id="preview-mmd-render-' + idx + '-' + i + '"></div>' +
-            '<pre class="mermaid-source" style="display:none">' +
-              src.replace(/&/g, '&amp;').replace(/</g, '&lt;') +
-            '</pre>' +
-          '</div>';
-        target.appendChild(wrapper);
-        wrapper.addEventListener('toggle', function () {
-          if (this.open && typeof renderMermaidAccordion === 'function') {
-            renderMermaidAccordion(this);
-          }
+    function showApplyMessage(html, isError) {
+      var out = field('result');
+      if (out) {
+        out.innerHTML = html;
+        out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      if (typeof showToast === 'function') {
+        var text = out ? out.textContent.replace(/\s+/g, ' ').trim() : '';
+        if (text.length > 180) text = text.slice(0, 177) + '\u2026';
+        showToast({
+          status: isError ? 'error' : 'success',
+          message: text || (isError ? 'Apply failed' : 'Applied'),
+          duration: isError ? 8000 : 3000,
         });
-      });
-    }
-
-    // ----- Preview -----
-
-    async function genPreview() {
-      var btn = q('[data-action="preview"]');
-      btn.disabled = true; btn.textContent = 'Generating\u2026';
-      try {
-        var recipe = buildRecipe();
-        var resp = await fetch('/api/flows/generate-preview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-          body: JSON.stringify(recipe)
-        });
-        var data = await resp.json();
-        var out = field('result');
-        if (data.error) {
-          out.innerHTML = '<div class="alert alert--critical"><p>' + data.error +
-            (data.detail ? '<br>' + fmtDetail(data.detail) : '') + '</p></div>';
-          return;
-        }
-        out.innerHTML = '';
-
-        var stats = document.createElement('div');
-        stats.style.cssText = 'font-size: 0.85rem; padding: 10px 0;';
-        var html = '<strong>' + data.total_resources + '</strong> resources, ' +
-          '<strong>' + data.estimated_api_calls + '</strong> API calls, ' +
-          '<strong>' + data.estimated_batches + '</strong> batches';
-        if (data.staged_count > 0) {
-          html += ', <strong>' + data.staged_count + '</strong> staged';
-        }
-        if (data.needs_confirmation) {
-          html += '<br><span class="badge badge--warning" style="margin-top: 4px;">Large run \u2014 will require confirmation</span>';
-        }
-        if (data.counts_by_type && Object.keys(data.counts_by_type).length > 0) {
-          html += '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">';
-          for (var rtype in data.counts_by_type) {
-            if (data.counts_by_type[rtype] > 0) {
-              html += '<span class="chip">' + rtype.replace(/_/g, ' ') + ': ' + data.counts_by_type[rtype] + '</span>';
-            }
-          }
-          html += '</div>';
-        }
-        if (data.edge_case_map && Object.keys(data.edge_case_map).length > 0) {
-          html += '<div style="margin-top: 8px;"><strong>Edge case assignments:</strong>';
-          for (var label in data.edge_case_map) {
-            var indices = data.edge_case_map[label];
-            var display = indices.length <= 20
-              ? indices.map(function (i) { return '#' + String(i).padStart(4, '0'); }).join(', ')
-              : indices.length + ' instances';
-            html += '<div style="display:flex; align-items:center; gap:6px; margin-top:4px;">' +
-              '<span class="badge badge--warning">' + label + '</span> ' +
-              '<span style="color:var(--mt-gray-500); font-size:0.8rem;">' + display + '</span></div>';
-          }
-          html += '</div>';
-        }
-        stats.innerHTML = html;
-        out.appendChild(stats);
-
-        renderPreviewMermaid(data.mermaid_diagrams, out);
-      } finally {
-        btn.disabled = false; btn.textContent = 'Preview';
       }
     }
 
-    // ----- Apply to config -----
-
     async function genApply() {
       var btn = q('[data-action="apply"]');
-      btn.disabled = true; btn.textContent = 'Applying\u2026';
+      var out = field('result');
+      var label = 'Apply to Config';
+      if (!btn) return;
+      if (out) out.innerHTML = '';
+      btn.disabled = true;
+      btn.textContent = 'Applying\u2026';
+      var recipe;
       try {
-        var recipe = buildRecipe();
+        recipe = buildRecipe();
+      } catch (buildErr) {
+        btn.disabled = false;
+        btn.textContent = label;
+        showApplyMessage(
+          '<div class="alert alert--critical"><p>Invalid scale settings: ' +
+            (buildErr && buildErr.message ? String(buildErr.message) : String(buildErr)) +
+            '</p></div>',
+          true
+        );
+        return;
+      }
+      try {
         var resp = await fetch('/api/flows/recipe-to-working-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Session-Token': sessionToken },
-          body: JSON.stringify(recipe)
+          body: JSON.stringify(recipe),
         });
-        var data = await resp.json();
-        if (data.error) {
-          var out = field('result');
-          out.innerHTML = '<div class="alert alert--critical"><p>' + data.error +
-            (data.detail ? '<br>' + fmtDetail(data.detail) : '') + '</p></div>';
+        var data;
+        try {
+          data = await resp.json();
+        } catch (parseErr) {
+          showApplyMessage(
+            '<div class="alert alert--critical"><p>Invalid response (HTTP ' +
+              resp.status +
+              '). Re-validate on Setup and try again.</p></div>',
+            true
+          );
           return;
         }
-        window.location.href = '/flows?session_token=' + encodeURIComponent(sessionToken) +
-          '&open_scale=' + idx;
+        if (!resp.ok || data.error) {
+          showApplyMessage(
+            '<div class="alert alert--critical"><p>' +
+              (data.error || 'Request failed (HTTP ' + resp.status + ')') +
+              (data.detail ? '<br>' + fmtDetail(data.detail) : '') +
+              '</p></div>',
+            true
+          );
+          return;
+        }
+        if (out) {
+          out.innerHTML =
+            '<div class="alert alert--success"><p>Applied. Reloading\u2026</p></div>';
+        }
+        if (typeof showToast === 'function') {
+          showToast({ status: 'success', message: 'Scale applied — reloading', duration: 2500 });
+        }
+        window.location.href =
+          '/flows?session_token=' +
+          encodeURIComponent(sessionToken) +
+          '&open_scale=' +
+          idx;
+      } catch (netErr) {
+        showApplyMessage(
+          '<div class="alert alert--critical"><p>Network error: ' +
+            (netErr && netErr.message ? netErr.message : String(netErr)) +
+            '</p></div>',
+          true
+        );
       } finally {
-        btn.disabled = false; btn.textContent = 'Apply to Config';
+        btn.disabled = false;
+        btn.textContent = label;
       }
     }
 
@@ -429,9 +407,20 @@
       var actionEl = e.target.closest('[data-action]');
       if (!actionEl || !container.contains(actionEl)) return;
       var action = actionEl.getAttribute('data-action');
+      if (action === 'apply') {
+        e.preventDefault();
+        e.stopPropagation();
+        void genApply().catch(function (err) {
+          showApplyMessage(
+            '<div class="alert alert--critical"><p>Apply failed: ' +
+              (err && err.message ? err.message : String(err)) +
+              '</p></div>',
+            true
+          );
+        });
+        return;
+      }
       switch (action) {
-        case 'preview': genPreview(); break;
-        case 'apply': genApply(); break;
         case 'add-staging-rule': addStagingRule(); break;
         case 'remove-staging-rule': actionEl.closest('.staging-rule').remove(); break;
       }

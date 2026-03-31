@@ -36,8 +36,8 @@ the full context window.
 |------|------|
 | **`chatgpt_app_instructions.md`** | **ChatGPT app Instructions field.** Behavioral guidance + generation rules + output format + Funds Flows DSL + validation loop. Self-contained. |
 | **`system_prompt.md`** | **Monolithic template.** Workflow, output format, placeholder slots for all docs below, generation rules, Funds Flows DSL with step types and optional_groups, validation loop. |
-| **`generation_profiles.md`** | **Scope selection** — minimal / demo-rich / extended; which sections to include; when to use `funds_flows` vs raw arrays. |
-| **`decision_rubrics.md`** | **Which MT resource** to use for a given intent (PSP defaults, IPD vs PO, NSF patterns, **`modern_treasury` default connections**, **BYOB-only** `example1`/`example2` + GWB/IBB matrix, ledger_entries shape, staged resources, cleanup reference). |
+| **`generation_profiles.md`** | **Scope selection** — minimal / demo-rich / extended; static/bootstrap sections; **always** author moves via `funds_flows` (no raw lifecycle authoring). |
+| **`decision_rubrics.md`** | **Which MT resource** to use for a given intent (PSP defaults, IPD vs PO, NSF patterns, **`modern_treasury` default connections**, **BYOB-only** `example1`/`example2` + GWB/IBB matrix, **PSP legal entities: never author `connection_id`** — BYOB when required, ledger_entries shape, staged resources, cleanup reference). |
 | **`ordering_rules.md`** | DAG behavior, `depends_on`, funds_flows step ordering, staged resource constraints. |
 | **`naming_conventions.md`** | `ref` keys, `$ref:` patterns, per-type naming table (including `transition_ledger_transaction`). |
 | **`metadata_patterns.md`** | Suggested metadata keys by vertical; string values only. |
@@ -57,7 +57,7 @@ README is descriptive only.
 |------|---------|
 | `funds_flow_demo.json` | Funds Flows DSL starter: actors, optional_groups, transition_ledger_transaction |
 | `marketplace_demo.json` | PSP marketplace: instance_resources, NSF return edge case |
-| `stablecoin_ramp.json` | Fiat↔stablecoin: dual connections, exclusion_group payout alternatives |
+| `stablecoin_ramp.json` | Fiat↔stablecoin: one `modern_treasury` connection, USD + USDC IAs, exclusion_group payout alternatives |
 | `tradeify.json` | Ledger-heavy brokerage: categories, per-user scaling, USDG |
 | `staged_demo.json` | Staged demo with "Fire" buttons |
 | `psp_minimal.json` | Minimal book-transfer-only config |

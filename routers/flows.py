@@ -577,6 +577,9 @@ async def recipe_to_working_config(request: Request):
     session.config = gen.config
     config_json_text = gen.config.model_dump_json(indent=2, exclude_none=True)
     session.config_json_text = config_json_text
+    # Keep editor + any working_config_json consumers in sync (otherwise flows
+    # page shows stale JSON and "Apply to Config" appears broken after redirect).
+    session.working_config_json = config_json_text
     session.mermaid_diagrams = gen.diagrams
     session.flow_ir = gen.flow_irs
     session.expanded_flows = gen.expanded_flows

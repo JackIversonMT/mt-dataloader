@@ -18,6 +18,36 @@ from handlers import DELETABILITY
 from models import DataLoaderConfig, DisplayPhase
 
 # ---------------------------------------------------------------------------
+# Preview row order (Setup phase) — matches execution dependency tiers, not
+# ``sorted(skip_refs)`` tail order. Reconciled connections were appended last
+# in raw batch order even though the DAG finishes them before legal entities.
+# ---------------------------------------------------------------------------
+
+_PREVIEW_SETUP_TYPE_TIER: dict[str, int] = {
+    "connection": 0,
+    "legal_entity": 10,
+    "ledger": 20,
+    "ledger_account": 30,
+    "ledger_account_category": 35,
+    "counterparty": 40,
+    "internal_account": 50,
+    "external_account": 55,
+    "virtual_account": 60,
+}
+
+
+def _preview_row_sort_key(item: dict[str, Any]) -> tuple:
+    phase = item["display_phase"]
+    batch = item["batch"]
+    tr = item["typed_ref"]
+    if phase != DisplayPhase.SETUP:
+        return (int(phase), batch if batch >= 0 else -1, tr)
+    tier = _PREVIEW_SETUP_TYPE_TIER.get(item["resource_type"], 1000)
+    eff_batch = batch if batch >= 0 else -1
+    return (int(phase), tier, eff_batch, tr)
+
+
+# ---------------------------------------------------------------------------
 # Templates reference — set by main.py at import time
 # ---------------------------------------------------------------------------
 
@@ -264,6 +294,7 @@ def build_preview(
         recon_match = recon_lookup.get(ref)
         items.append(_build_item(ref, resource, -1, recon_match))
 
+    items.sort(key=_preview_row_sort_key)
     return items
 
 
